@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     #   python3 -c "import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
     token_encryption_key: str = ""
 
+    # Optional: Groq API key powering the natural-language booking
+    # assistant (Llama 3.3, open-weight, served via Groq's free tier).
+    # Get one at console.groq.com/keys. Left blank, the assistant endpoint
+    # just returns 503 rather than failing app startup.
+    groq_api_key: str = ""
+
     class Config:
         env_file = ".env"
 

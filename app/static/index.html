@@ -472,6 +472,34 @@
     margin-bottom: 0.6rem;
   }
 
+  .assistant-box {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.9rem 1rem 1rem;
+    margin-bottom: 1.4rem;
+  }
+  .assistant-box label { margin-bottom: 0.5rem; }
+  .assistant-row { display: flex; gap: 0.5rem; }
+  .assistant-row input { margin-bottom: 0; flex: 1; }
+  .assistant-row button { flex-shrink: 0; }
+  .assistant-draft {
+    margin-top: 0.85rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 0.95rem;
+  }
+  .assistant-draft-text { font-size: 0.88rem; margin: 0 0 0.75rem; }
+  .assistant-draft-text b { color: var(--text); }
+  .assistant-draft-actions { display: flex; gap: 0.5rem; }
+  .assistant-draft-actions button { flex: 1; padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+  .assistant-clarification {
+    margin-top: 0.85rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
   .summary-row { display: flex; gap: 0.5rem; margin: 0.9rem 0; flex-wrap: wrap; }
   .summary-chip {
     display: inline-flex;
@@ -865,6 +893,15 @@
         <p class="card-title" style="margin:0">Book a slot</p>
       </div>
       <button type="button" class="link-btn" id="todayBtn" style="margin:0">Jump to today</button>
+    </div>
+
+    <div id="assistantBox" class="assistant-box hidden">
+      <label for="assistantInput">Or just describe it</label>
+      <div class="assistant-row">
+        <input id="assistantInput" type="text" placeholder='e.g. &quot;Book Meeting Room A tomorrow at 3pm&quot;' maxlength="500" />
+        <button type="button" class="secondary" id="assistantAskBtn">Ask</button>
+      </div>
+      <div id="assistantResult"></div>
     </div>
 
     <div class="booking-grid">
@@ -1752,6 +1789,125 @@ async function loadMyBookings() {
   listEl.appendChild(wrap);
 }
 
+async function loadAssistantStatus() {
+  const box = document.getElementById("assistantBox");
+  try {
+    const { configured } = await api("/assistant/status");
+    box.classList.toggle("hidden", !configured);
+  } catch (e) {
+    box.classList.add("hidden");
+  }
+}
+
+let assistantDraft = null;
+
+function renderAssistantResult(html) {
+  document.getElementById("assistantResult").innerHTML = "";
+  if (html) document.getElementById("assistantResult").appendChild(html);
+}
+
+function clearAssistantResult() {
+  document.getElementById("assistantResult").innerHTML = "";
+  assistantDraft = null;
+}
+
+document.getElementById("assistantAskBtn").onclick = async () => {
+  const btn = document.getElementById("assistantAskBtn");
+  const input = document.getElementById("assistantInput");
+  const message = input.value.trim();
+  if (!message) return;
+  clearAssistantResult();
+  await withLoading(btn, async () => {
+    let result;
+    try {
+      result = await api("/assistant/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+    } catch (e) {
+      const note = document.createElement("div");
+      note.className = "assistant-clarification";
+      note.textContent = e.message;
+      renderAssistantResult(note);
+      return;
+    }
+
+    if (result.needs_clarification) {
+      const note = document.createElement("div");
+      note.className = "assistant-clarification";
+      note.textContent = result.clarification || "Couldn't work that out — try naming the room and a time.";
+      renderAssistantResult(note);
+      return;
+    }
+
+    assistantDraft = result;
+    const dateLabel = new Date(result.start_time).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: DISPLAY_TZ,
+    });
+    const timeLabel = `${formatClockTime(result.start_time)}–${formatClockTime(result.end_time)}`;
+
+    const draft = document.createElement("div");
+    draft.className = "assistant-draft";
+    const text = document.createElement("p");
+    text.className = "assistant-draft-text";
+    const b = document.createElement("b");
+    b.textContent = result.resource_name;
+    text.appendChild(document.createTextNode("Book "));
+    text.appendChild(b);
+    text.appendChild(document.createTextNode(` — ${dateLabel}, ${timeLabel} CET?`));
+    const actions = document.createElement("div");
+    actions.className = "assistant-draft-actions";
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.textContent = "Confirm";
+    confirmBtn.onclick = () => confirmAssistantDraft(confirmBtn);
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "secondary";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.onclick = () => {
+      clearAssistantResult();
+      input.value = "";
+    };
+    actions.appendChild(confirmBtn);
+    actions.appendChild(cancelBtn);
+    draft.appendChild(text);
+    draft.appendChild(actions);
+    renderAssistantResult(draft);
+  });
+};
+
+async function confirmAssistantDraft(btn) {
+  if (!assistantDraft) return;
+  const draft = assistantDraft;
+  await withLoading(btn, async () => {
+    try {
+      const booking = await api("/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resource_id: draft.resource_id,
+          start_time: draft.start_time,
+          end_time: draft.end_time,
+          idempotency_key: crypto.randomUUID(),
+        }),
+      });
+      showToast(`Booked ${draft.resource_name} (booking #${booking.id}).`, "ok");
+      clearAssistantResult();
+      document.getElementById("assistantInput").value = "";
+      await loadMyBookings();
+      const bookedDateStr = draft.start_time.slice(0, 10);
+      if (selectedDateStr === bookedDateStr) await loadTimesForDate(selectedDateStr);
+    } catch (e) {
+      showToast(e.status === 409 ? "That slot was just taken." : e.message, "error");
+    }
+  });
+}
+
 async function loadGoogleStatus() {
   const connectBtn = document.getElementById("gcalConnectBtn");
   const connectedRow = document.getElementById("gcalConnectedRow");
@@ -1855,6 +2011,7 @@ async function initApp(email) {
   await selectDate(todayUTCString());
   await loadMyBookings();
   await loadGoogleStatus();
+  await loadAssistantStatus();
   await loadAdminLinkVisibility();
   checkGoogleRedirect();
 }

@@ -93,3 +93,16 @@ class RecurringBookingResult(BaseModel):
 
 class AdminUserRoleUpdate(BaseModel):
     is_admin: bool
+
+
+class AssistantParseRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=500)
+
+
+class AssistantParseResponse(BaseModel):
+    needs_clarification: bool
+    clarification: str | None = None
+    resource_id: int | None = None
+    resource_name: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
