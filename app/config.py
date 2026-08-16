@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     token_encryption_key: str = ""
 
     # Optional: Groq API key powering the natural-language booking
-    # assistant (Llama 3.3, open-weight, served via Groq's free tier).
+    # assistant (GPT OSS 120B, open-weight, served via Groq's free tier).
     # Get one at console.groq.com/keys. Left blank, the assistant endpoint
     # just returns 503 rather than failing app startup.
     groq_api_key: str = ""

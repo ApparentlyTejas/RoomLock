@@ -13,10 +13,12 @@ POST /bookings endpoint like any other request — the model is a fuzzy
 front end bolted onto an unchanged, strict backend, not a shortcut around
 it.
 
-Llama 3.3 70B via Groq: free tier, OpenAI-compatible REST API, native JSON
+GPT OSS 120B via Groq: free tier, OpenAI-compatible REST API, native JSON
 mode (response_format={"type": "json_object"}) is enough for this — no
 function-calling or agent framework needed for a single structured
-extraction.
+extraction. (Originally built against Llama 3.3 70B; switched after Groq
+announced its decommission on 2026-08-16 — same open-weight-model-via-Groq
+approach, just the model id changed.)
 """
 
 import json
@@ -27,7 +29,7 @@ import requests
 from app.config import settings
 
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 DISPLAY_TZ = "Europe/Berlin"
 
 
