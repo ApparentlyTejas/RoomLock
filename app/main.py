@@ -9,7 +9,7 @@ from app.database import SessionLocal
 from app.rate_limit import limiter
 from app.routers import admin, assistant, auth, bookings, google_calendar, resources
 
-app = FastAPI(title="Booking API")
+app = FastAPI(title="RoomLock")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

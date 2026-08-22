@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Booking API: Calendar</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%234f46e5'/%3E%3Cpath d='M8 6v3M16 6v3M4 10h16M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+<title>RoomLock: Calendar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%2304316a'/%3E%3Cpath d='M8 6v3M16 6v3M4 10h16M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/ui/manifest.json" />
-<meta name="theme-color" content="#17160f" />
+<meta name="theme-color" content="#04316a" />
 <script>
   (function () {
     var saved = localStorage.getItem("booking_api_theme");
@@ -25,9 +25,9 @@
     --faint: #a29c8a;
     --ink: #17160f;
     --ink-2: #322f24;
-    --accent: #b45309;
-    --accent-dark: #92400e;
-    --accent-soft: #fdf0e1;
+    --accent: #004a9f;
+    --accent-dark: #04316a;
+    --accent-soft: #ced9e7;
     --free: #eefaf1;
     --free-border: #34d399;
     --free-text: #0f7a4e;
@@ -55,9 +55,9 @@
       --faint: #756e5c;
       --ink: #24221a;
       --ink-2: #34301f;
-      --accent: #e0902f;
-      --accent-dark: #c2760f;
-      --accent-soft: rgba(224, 144, 47, 0.16);
+      --accent: #4a90d9;
+      --accent-dark: #2e6da4;
+      --accent-soft: rgba(74, 144, 217, 0.16);
       --free: rgba(52, 211, 153, 0.14);
       --free-border: #34d399;
       --free-text: #4ade80;
@@ -85,9 +85,9 @@
     --faint: #756e5c;
     --ink: #24221a;
     --ink-2: #34301f;
-    --accent: #e0902f;
-    --accent-dark: #c2760f;
-    --accent-soft: rgba(224, 144, 47, 0.16);
+    --accent: #4a90d9;
+    --accent-dark: #2e6da4;
+    --accent-soft: rgba(74, 144, 217, 0.16);
     --free: rgba(52, 211, 153, 0.14);
     --free-border: #34d399;
     --free-text: #4ade80;
@@ -112,7 +112,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     background:
-      radial-gradient(900px 420px at 50% -10%, rgba(180, 83, 9, 0.09), transparent 60%),
+      radial-gradient(900px 420px at 50% -10%, rgba(4, 49, 106, 0.08), transparent 60%),
       radial-gradient(circle, rgba(23,22,15,0.07) 1px, transparent 1px) 0 0 / 22px 22px,
       var(--bg);
     color: var(--text);
@@ -147,7 +147,7 @@
   .brand-mark svg { width: 16px; height: 16px; }
   header h1 { font-size: 1.05rem; margin: 0; font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; color: #fff; }
   header .who-email { color: rgba(255, 255, 255, 0.65); }
-  header a.linklike { color: #fbbf6b; }
+  header a.linklike { color: #9fc5ea; }
 
   .header-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
   .theme-toggle-btn {
@@ -251,6 +251,28 @@
     box-shadow: 0 0 0 3.5px var(--accent-soft);
   }
   input.field-error { border-color: var(--error); }
+
+  .password-field { position: relative; }
+  .password-field input { padding-right: 2.6rem; margin-bottom: 0; }
+  .password-field { margin-bottom: 0.9rem; }
+  .password-toggle-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 2.6rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--faint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .password-toggle-btn:hover:not(:disabled) { color: var(--accent-dark); background: transparent; transform: none; box-shadow: none; }
+  .password-toggle-btn .icon-eye-off.hidden,
+  .password-toggle-btn .icon-eye.hidden { display: none; }
 
   button {
     cursor: pointer;
@@ -466,7 +488,7 @@
     letter-spacing: 0.02em;
     color: var(--accent-dark);
     background: var(--accent-soft);
-    border: 1px solid #f3d9b8;
+    border: 1px solid #b9cce3;
     padding: 0.2rem 0.55rem;
     border-radius: 999px;
     margin-bottom: 0.6rem;
@@ -815,7 +837,7 @@
         <path d="M8 2v4M16 2v4M3 9h18"/>
       </svg>
     </span>
-    <h1>Booking API</h1>
+    <h1>RoomLock</h1>
   </div>
   <div class="header-right">
     <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle dark mode" title="Toggle dark mode">
@@ -839,7 +861,7 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 6v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V6z"/></svg>
         Concurrency-safe by design
       </span>
-      <h2>Book shared resources without double-booking. Ever.</h2>
+      <h2>Book FAU study rooms without double-booking. Ever.</h2>
       <p>Backed by a Postgres exclusion constraint, not app-level guesswork. Two people can never win the same slot.</p>
       <ul class="auth-features">
         <li><span class="tick">✓</span> Real-time availability</li>
@@ -864,7 +886,13 @@
         <label for="loginEmail">Email</label>
         <input id="loginEmail" type="email" autocomplete="username" />
         <label for="loginPassword">Password</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" />
+        <div class="password-field">
+          <input id="loginPassword" type="password" autocomplete="current-password" />
+          <button type="button" class="password-toggle-btn" data-target="loginPassword" aria-label="Show password" title="Show password">
+            <svg class="icon-eye" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="icon-eye-off hidden" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.6 21.6 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>
+          </button>
+        </div>
         <button id="loginBtn" class="block">Log in</button>
         <p class="muted" style="margin-top:0.9rem">No account? <a class="linklike" id="showRegister">Register</a></p>
       </div>
@@ -874,7 +902,13 @@
         <label for="registerEmail">Email</label>
         <input id="registerEmail" type="email" autocomplete="username" />
         <label for="registerPassword">Password</label>
-        <input id="registerPassword" type="password" autocomplete="new-password" />
+        <div class="password-field">
+          <input id="registerPassword" type="password" autocomplete="new-password" />
+          <button type="button" class="password-toggle-btn" data-target="registerPassword" aria-label="Show password" title="Show password">
+            <svg class="icon-eye" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="icon-eye-off hidden" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.6 21.6 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>
+          </button>
+        </div>
         <button id="registerBtn" class="block">Register</button>
         <p class="muted" style="margin-top:0.9rem">Already have an account? <a class="linklike" id="showLogin">Log in</a></p>
       </div>
@@ -1086,17 +1120,48 @@ function showLoggedOut() {
   document.getElementById("appCard").classList.add("hidden");
   document.getElementById("myBookingsCard").classList.add("hidden");
   document.getElementById("who").classList.add("hidden");
+  document.getElementById("loginEmail").focus();
 }
+
+document.querySelectorAll(".password-toggle-btn").forEach((btn) => {
+  btn.onclick = () => {
+    const input = document.getElementById(btn.dataset.target);
+    const showing = input.type === "text";
+    input.type = showing ? "password" : "text";
+    btn.querySelector(".icon-eye").classList.toggle("hidden", !showing);
+    btn.querySelector(".icon-eye-off").classList.toggle("hidden", showing);
+    const label = showing ? "Show password" : "Hide password";
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+  };
+});
+
+function submitOnEnter(inputIds, buttonId) {
+  const button = document.getElementById(buttonId);
+  for (const id of inputIds) {
+    document.getElementById(id).addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.isComposing && !button.disabled) {
+        e.preventDefault();
+        button.click();
+      }
+    });
+  }
+}
+submitOnEnter(["loginEmail", "loginPassword"], "loginBtn");
+submitOnEnter(["registerEmail", "registerPassword"], "registerBtn");
+submitOnEnter(["assistantInput"], "assistantAskBtn");
 
 document.getElementById("showRegister").onclick = () => {
   document.getElementById("loginForm").classList.add("hidden");
   document.getElementById("registerForm").classList.remove("hidden");
   setStatus(document.getElementById("authStatus"), "");
+  document.getElementById("registerEmail").focus();
 };
 document.getElementById("showLogin").onclick = () => {
   document.getElementById("registerForm").classList.add("hidden");
   document.getElementById("loginForm").classList.remove("hidden");
   setStatus(document.getElementById("authStatus"), "");
+  document.getElementById("loginEmail").focus();
 };
 
 document.getElementById("loginBtn").onclick = async () => {
@@ -1235,7 +1300,7 @@ function googleCalendarUrl(resourceName, startIso, endIso) {
     action: "TEMPLATE",
     text: `${resourceName} booking`,
     dates: `${toIcsDateTime(startIso)}/${toIcsDateTime(endIso)}`,
-    details: "Booked via Booking API",
+    details: "Booked via RoomLock",
     ctz: "Europe/Berlin",
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -1245,14 +1310,14 @@ function downloadIcs(bookingId, resourceName, startIso, endIso) {
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Booking API//EN",
+    "PRODID:-//RoomLock//EN",
     "BEGIN:VEVENT",
     `UID:booking-${bookingId}@booking-api`,
     `DTSTAMP:${toIcsDateTime(new Date().toISOString())}`,
     `DTSTART:${toIcsDateTime(startIso)}`,
     `DTEND:${toIcsDateTime(endIso)}`,
     `SUMMARY:${icsEscape(resourceName + " booking")}`,
-    `DESCRIPTION:${icsEscape("Booked via Booking API")}`,
+    `DESCRIPTION:${icsEscape("Booked via RoomLock")}`,
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
@@ -1675,6 +1740,12 @@ function startEditingBooking(b, row) {
   saveBtn.type = "button";
   saveBtn.textContent = "Save";
   saveBtn.onclick = () => saveBookingEdit(b, dateInput.value, Number(hourSelect.value), saveBtn);
+  dateInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.isComposing) {
+      e.preventDefault();
+      saveBtn.click();
+    }
+  });
 
   const cancelEditBtn = document.createElement("button");
   cancelEditBtn.type = "button";

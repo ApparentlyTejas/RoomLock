@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Booking API: Admin</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%2317160f'/%3E%3Cpath d='M8 6v3M16 6v3M4 10h16M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+<title>RoomLock: Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%2304316a'/%3E%3Cpath d='M8 6v3M16 6v3M4 10h16M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/ui/manifest.json" />
-<meta name="theme-color" content="#17160f" />
+<meta name="theme-color" content="#04316a" />
 <script>
   (function () {
     var saved = localStorage.getItem("booking_api_theme");
@@ -25,9 +25,9 @@
     --faint: #a29c8a;
     --ink: #17160f;
     --ink-2: #322f24;
-    --accent: #b45309;
-    --accent-dark: #92400e;
-    --accent-soft: #fdf0e1;
+    --accent: #004a9f;
+    --accent-dark: #04316a;
+    --accent-soft: #ced9e7;
     --error-bg: #fbeeec;
     --error-border: #e5a29a;
     --error: #b3261e;
@@ -48,9 +48,9 @@
       --faint: #756e5c;
       --ink: #24221a;
       --ink-2: #34301f;
-      --accent: #e0902f;
-      --accent-dark: #c2760f;
-      --accent-soft: rgba(224, 144, 47, 0.16);
+      --accent: #4a90d9;
+      --accent-dark: #2e6da4;
+      --accent-soft: rgba(74, 144, 217, 0.16);
       --error-bg: rgba(229, 162, 154, 0.14);
       --error-border: #e5a29a;
       --error: #f37268;
@@ -71,9 +71,9 @@
     --faint: #756e5c;
     --ink: #24221a;
     --ink-2: #34301f;
-    --accent: #e0902f;
-    --accent-dark: #c2760f;
-    --accent-soft: rgba(224, 144, 47, 0.16);
+    --accent: #4a90d9;
+    --accent-dark: #2e6da4;
+    --accent-soft: rgba(74, 144, 217, 0.16);
     --error-bg: rgba(229, 162, 154, 0.14);
     --error-border: #e5a29a;
     --error: #f37268;
@@ -90,7 +90,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     background:
-      radial-gradient(900px 420px at 50% -10%, rgba(180, 83, 9, 0.09), transparent 60%),
+      radial-gradient(900px 420px at 50% -10%, rgba(4, 49, 106, 0.08), transparent 60%),
       radial-gradient(circle, rgba(23,22,15,0.07) 1px, transparent 1px) 0 0 / 22px 22px,
       var(--bg);
     color: var(--text);
@@ -125,7 +125,7 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--ink);
-    background: linear-gradient(135deg, #fbbf6b, var(--accent));
+    background: linear-gradient(135deg, #b9d6f0, #6fa8dc);
     padding: 0.2rem 0.5rem;
     border-radius: 999px;
   }
@@ -328,7 +328,7 @@
         <path d="M8 2v4M16 2v4M3 9h18"/>
       </svg>
     </span>
-    <h1>Booking API <span class="admin-badge">Admin</span></h1>
+    <h1>RoomLock <span class="admin-badge">Admin</span></h1>
   </a>
   <nav>
     <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle dark mode" title="Toggle dark mode">
@@ -420,6 +420,19 @@ document.getElementById("themeToggleBtn").onclick = () => {
   localStorage.setItem(THEME_KEY, next);
   document.documentElement.setAttribute("data-theme", next);
 };
+
+function submitOnEnter(inputIds, buttonId) {
+  const button = document.getElementById(buttonId);
+  for (const id of inputIds) {
+    document.getElementById(id).addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.isComposing && !button.disabled) {
+        e.preventDefault();
+        button.click();
+      }
+    });
+  }
+}
+submitOnEnter(["newResourceName", "newResourceCapacity", "newResourceAmenities"], "addResourceBtn");
 
 function showToast(message, kind = "ok", timeout = 4000) {
   const container = document.getElementById("toasts");

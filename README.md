@@ -1,10 +1,20 @@
-# booking-api
+# RoomLock
 
-Concurrency-safe resource booking API: found a double-booking race under
-load, fixed it two different ways (row lock, then a Postgres exclusion
-constraint), load-tested both to compare correctness and throughput, and
-then kept building — room metadata, recurring bookings, admin analytics,
-and a natural-language booking assistant on top of it.
+Concurrency-safe resource booking API, themed for booking study rooms and
+seminar spaces around FAU Erlangen-Nürnberg: found a double-booking race
+under load, fixed it two different ways (row lock, then a Postgres
+exclusion constraint), load-tested both to compare correctness and
+throughput, and then kept building — room metadata, recurring bookings,
+admin analytics, and a natural-language booking assistant on top of it.
+The name is literal: a Postgres exclusion constraint locks a booked slot
+so nothing else can land on top of it.
+
+**Independent student project — not an official FAU service, and not
+affiliated with or endorsed by the university.** The FAU-blue color
+scheme (`#004A9F` / `#04316A`, sourced from FAU's own published design
+docs) and sample room names are cosmetic branding for this portfolio
+demo, applied on top of a generic booking backend that isn't tied to any
+one institution.
 
 **Live demo:** **https://bookingapi-i4cg.onrender.com**
 (free-tier hosting — if it's been quiet for a while, the first request can
@@ -182,6 +192,11 @@ From there, that account can promote/demote anyone else, manage rooms
 (including CSV bulk-import), and view usage analytics from
 `/ui/admin.html` (linked in the header once logged in as an admin) — no
 more manual SQL needed. The API refuses to demote the last remaining admin.
+
+`docs/fau-sample-rooms.csv` has a few sample rooms named after real FAU
+Erlangen campus locations (Kollegienhaus, the University Library, Roter
+Platz, Südmensa) — import it via the admin page's "Import CSV" to populate
+the demo with something more concrete than "Meeting Room A."
 
 ## Create a resource and a booking
 

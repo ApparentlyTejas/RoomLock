@@ -221,7 +221,7 @@ def create_booking(
                 event_id = gcal.create_event(
                     crypto.decrypt(current_user.google_refresh_token),
                     summary=f"{resource.name} booking",
-                    description="Booked via Booking API",
+                    description="Booked via RoomLock",
                     start=booking.start_time,
                     end=booking.end_time,
                 )
@@ -309,7 +309,7 @@ def create_recurring_booking(
                     event_id = gcal.create_event(
                         crypto.decrypt(current_user.google_refresh_token),
                         summary=f"{resource.name} booking",
-                        description="Booked via Booking API",
+                        description="Booked via RoomLock",
                         start=booking.start_time,
                         end=booking.end_time,
                     )

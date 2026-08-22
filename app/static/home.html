@@ -3,10 +3,24 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Booking API: a concurrency-safe resource booking API</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%2317160f'/%3E%3Cpath d='M8 6v3M16 6v3M4 10h16M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+<title>RoomLock: a concurrency-safe study room booking app for FAU</title>
+<meta name="description" content="RoomLock — a concurrency-safe room booking app for FAU Erlangen-Nürnberg study rooms and seminar spaces. Found a real race condition under load, fixed it two ways, and load-tested both until the numbers proved which one held up." />
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content="RoomLock — book FAU study rooms without double-booking" />
+<meta property="og:description" content="A concurrency-safe room booking app for FAU Erlangen-Nürnberg study rooms and seminar spaces. Found a real race condition under load, fixed it two ways, and load-tested both." />
+<meta property="og:url" content="https://bookingapi-i4cg.onrender.com/" />
+<meta property="og:image" content="https://bookingapi-i4cg.onrender.com/ui/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="RoomLock — book FAU study rooms without double-booking" />
+<meta name="twitter:description" content="A concurrency-safe room booking app for FAU Erlangen-Nürnberg study rooms and seminar spaces." />
+<meta name="twitter:image" content="https://bookingapi-i4cg.onrender.com/ui/og-image.png" />
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%2304316a'/%3E%3Cpath d='M8 6v3M16 6v3M4 10h16M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/ui/manifest.json" />
-<meta name="theme-color" content="#17160f" />
+<meta name="theme-color" content="#04316a" />
 <script>
   (function () {
     var saved = localStorage.getItem("booking_api_theme");
@@ -25,9 +39,9 @@
     --faint: #a29c8a;
     --ink: #17160f;
     --ink-2: #322f24;
-    --accent: #b45309;
-    --accent-dark: #92400e;
-    --accent-soft: #fdf0e1;
+    --accent: #004a9f;
+    --accent-dark: #04316a;
+    --accent-soft: #ced9e7;
     --ok: #0f7a4e;
     --ok-bg: #eefaf1;
     --error: #b3261e;
@@ -47,9 +61,9 @@
       --faint: #756e5c;
       --ink: #24221a;
       --ink-2: #34301f;
-      --accent: #e0902f;
-      --accent-dark: #c2760f;
-      --accent-soft: rgba(224, 144, 47, 0.16);
+      --accent: #4a90d9;
+      --accent-dark: #2e6da4;
+      --accent-soft: rgba(74, 144, 217, 0.16);
       --ok: #4ade80;
       --ok-bg: rgba(163, 228, 188, 0.14);
       --error: #f37268;
@@ -68,9 +82,9 @@
     --faint: #756e5c;
     --ink: #24221a;
     --ink-2: #34301f;
-    --accent: #e0902f;
-    --accent-dark: #c2760f;
-    --accent-soft: rgba(224, 144, 47, 0.16);
+    --accent: #4a90d9;
+    --accent-dark: #2e6da4;
+    --accent-soft: rgba(74, 144, 217, 0.16);
     --ok: #4ade80;
     --ok-bg: rgba(163, 228, 188, 0.14);
     --error: #f37268;
@@ -86,7 +100,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     background:
-      radial-gradient(900px 420px at 50% -10%, rgba(180, 83, 9, 0.09), transparent 60%),
+      radial-gradient(900px 420px at 50% -10%, rgba(4, 49, 106, 0.08), transparent 60%),
       radial-gradient(circle, rgba(23,22,15,0.07) 1px, transparent 1px) 0 0 / 22px 22px,
       var(--bg);
     color: var(--text);
@@ -178,7 +192,7 @@
     gap: 0.4rem;
     background: var(--accent-soft);
     color: var(--accent-dark);
-    border: 1px solid #f3d9b8;
+    border: 1px solid #b9cce3;
     padding: 0.3rem 0.75rem;
     border-radius: 999px;
     font-size: 0.75rem;
@@ -203,6 +217,7 @@
     margin: 0 auto 2rem;
   }
   .hero-ctas { display: flex; gap: 0.85rem; justify-content: center; flex-wrap: wrap; }
+  .hero-disclaimer { font-size: 0.76rem; color: var(--faint); margin: 1.1rem 0 0; }
 
   /* ---- Sections ---- */
   section.block { padding: 3.25rem 0; border-top: 1px solid var(--border); }
@@ -321,7 +336,7 @@
         <path d="M8 2v4M16 2v4M3 9h18"/>
       </svg>
     </span>
-    <span class="brand-name">Booking API</span>
+    <span class="brand-name">RoomLock</span>
   </a>
   <nav>
     <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle dark mode" title="Toggle dark mode">
@@ -342,8 +357,10 @@
     </span>
     <h1 class="headline">Two people book the same slot. <em>Only one should win.</em></h1>
     <p class="subhead">
-      A resource booking API built around one real concurrency bug. Found it under load,
-      fixed it two different ways, and load-tested both until the numbers proved which one held up.
+      A room booking app for FAU Erlangen-Nürnberg study rooms and seminar
+      spaces, built around one real concurrency bug. Found it under load,
+      fixed it two different ways, and load-tested both until the numbers
+      proved which one held up.
     </p>
     <div class="hero-ctas">
       <a class="btn" href="/ui/">
@@ -352,6 +369,7 @@
       </a>
       <a class="btn secondary" href="https://github.com/ApparentlyTejas/bookingAPI" target="_blank" rel="noopener">View the source</a>
     </div>
+    <p class="hero-disclaimer">Independent student project — not officially affiliated with or endorsed by FAU.</p>
   </section>
 
   <section class="block">
@@ -445,7 +463,8 @@
 </main>
 
 <footer>
-  A solo portfolio build. <a href="https://github.com/ApparentlyTejas/bookingAPI" target="_blank" rel="noopener">Source on GitHub</a>
+  A solo student portfolio build for FAU Erlangen-Nürnberg — not an official
+  university service. <a href="https://github.com/ApparentlyTejas/bookingAPI" target="_blank" rel="noopener">Source on GitHub</a>
 </footer>
 
 <script>
