@@ -586,6 +586,14 @@
   @media (max-width: 900px) {
     .booking-info { border-right: none; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 1.4rem; }
   }
+  .capacity-filter { display: flex; align-items: center; gap: 0.5rem; margin: -0.55rem 0 0; }
+  .capacity-filter label { margin: 0; font-size: 0.78rem; font-weight: 500; color: var(--muted); flex-shrink: 0; }
+  .capacity-filter input {
+    width: 5.5rem;
+    margin: 0;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.85rem;
+  }
   .resource-meta { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
   .meta-row { display: flex; align-items: center; gap: 0.55rem; font-size: 0.82rem; color: var(--muted); }
   .meta-row svg { flex-shrink: 0; color: var(--faint); }
@@ -974,6 +982,10 @@
       <aside class="booking-info">
         <label for="resourceSelect">Resource</label>
         <select id="resourceSelect"></select>
+        <div class="capacity-filter">
+          <label for="minCapacityFilter">Need seats for at least</label>
+          <input id="minCapacityFilter" type="number" min="1" placeholder="Any size" />
+        </div>
         <div class="resource-meta">
           <div id="capacityRow" class="meta-row hidden">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1284,24 +1296,53 @@ let calendarCursor = new Date();
 let selectedDateStr = null;
 let selectedHour = null;
 let resourcesById = {};
+let allResources = [];
 
 async function loadResources() {
+  allResources = await api("/resources");
+  resourcesById = Object.fromEntries(allResources.map((r) => [r.id, r]));
+  renderResourceOptions();
+}
+
+function renderResourceOptions() {
   const select = document.getElementById("resourceSelect");
+  const previousValue = select.value;
   select.innerHTML = "";
-  const resources = await api("/resources");
-  resourcesById = Object.fromEntries(resources.map((r) => [r.id, r]));
-  if (resources.length === 0) {
+
+  if (allResources.length === 0) {
     select.innerHTML = "<option disabled>No resources yet</option>";
+    updateResourceMeta();
     return;
   }
-  for (const r of resources) {
+
+  const minCapacity = Number(document.getElementById("minCapacityFilter").value) || 0;
+  const visible = allResources.filter((r) => !minCapacity || (r.capacity && r.capacity >= minCapacity));
+
+  if (visible.length === 0) {
+    select.innerHTML = "<option disabled>No rooms seat that many</option>";
+    updateResourceMeta();
+    return;
+  }
+
+  for (const r of visible) {
     const opt = document.createElement("option");
     opt.value = r.id;
-    opt.textContent = r.name;
+    opt.textContent = r.capacity ? `${r.name} — ${r.capacity} seats` : r.name;
     select.appendChild(opt);
+  }
+
+  // keep the same room selected across a filter change if it's still in
+  // the filtered list, instead of silently jumping to a different room
+  if (visible.some((r) => String(r.id) === previousValue)) {
+    select.value = previousValue;
   }
   updateResourceMeta();
 }
+
+document.getElementById("minCapacityFilter").addEventListener("input", () => {
+  renderResourceOptions();
+  if (selectedDateStr) selectDate(selectedDateStr);
+});
 
 function updateResourceMeta() {
   const resource = resourcesById[document.getElementById("resourceSelect").value];
