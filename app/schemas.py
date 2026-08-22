@@ -1,12 +1,26 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
 
 
 class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def password_must_be_strong(cls, value: str) -> str:
+        missing = []
+        if not any(c.isupper() for c in value):
+            missing.append("an uppercase letter")
+        if not any(c.islower() for c in value):
+            missing.append("a lowercase letter")
+        if not any(c.isdigit() for c in value):
+            missing.append("a number")
+        if missing:
+            raise ValueError("Password must include " + ", ".join(missing) + ".")
+        return value
 
 
 class UserOut(BaseModel):

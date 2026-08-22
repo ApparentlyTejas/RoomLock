@@ -274,6 +274,32 @@
   .password-toggle-btn .icon-eye-off.hidden,
   .password-toggle-btn .icon-eye.hidden { display: none; }
 
+  .password-requirements {
+    list-style: none;
+    margin: -0.35rem 0 0.9rem;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.7rem;
+  }
+  .password-requirements li {
+    font-size: 0.76rem;
+    color: var(--faint);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .password-requirements li::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--faint);
+    flex-shrink: 0;
+  }
+  .password-requirements li.met { color: var(--ok); }
+  .password-requirements li.met::before { background: var(--ok); }
+
   button {
     cursor: pointer;
     border: none;
@@ -909,6 +935,12 @@
             <svg class="icon-eye-off hidden" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.6 21.6 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.6 21.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>
           </button>
         </div>
+        <ul class="password-requirements" id="passwordRequirements">
+          <li data-rule="length">At least 8 characters</li>
+          <li data-rule="upper">One uppercase letter</li>
+          <li data-rule="lower">One lowercase letter</li>
+          <li data-rule="digit">One number</li>
+        </ul>
         <button id="registerBtn" class="block">Register</button>
         <p class="muted" style="margin-top:0.9rem">Already have an account? <a class="linklike" id="showLogin">Log in</a></p>
       </div>
@@ -1082,6 +1114,22 @@ async function withLoading(btn, fn) {
   }
 }
 
+function errorMessageFromBody(body, fallback) {
+  const detail = body && body.detail;
+  if (typeof detail === "string") return detail;
+  // FastAPI/Pydantic validation errors come back as an array of
+  // {loc, msg, type} objects, not a plain string — new Error(thatArray)
+  // used to stringify to "[object Object]", which is why validation
+  // failures (e.g. a weak password) showed no useful message at all.
+  if (Array.isArray(detail) && detail.length) {
+    return detail
+      .map((e) => (e.msg || "").replace(/^Value error,\s*/, ""))
+      .filter(Boolean)
+      .join("; ") || fallback;
+  }
+  return fallback;
+}
+
 async function api(path, options = {}) {
   const headers = options.headers || {};
   if (token()) headers["Authorization"] = "Bearer " + token();
@@ -1089,8 +1137,7 @@ async function api(path, options = {}) {
   let body = null;
   try { body = await res.json(); } catch (e) { /* no body */ }
   if (!res.ok) {
-    const detail = (body && body.detail) || res.statusText;
-    const err = new Error(detail);
+    const err = new Error(errorMessageFromBody(body, res.statusText));
     err.status = res.status;
     throw err;
   }
@@ -1150,6 +1197,19 @@ function submitOnEnter(inputIds, buttonId) {
 submitOnEnter(["loginEmail", "loginPassword"], "loginBtn");
 submitOnEnter(["registerEmail", "registerPassword"], "registerBtn");
 submitOnEnter(["assistantInput"], "assistantAskBtn");
+
+document.getElementById("registerPassword").addEventListener("input", (e) => {
+  const value = e.target.value;
+  const rules = {
+    length: value.length >= 8,
+    upper: /[A-Z]/.test(value),
+    lower: /[a-z]/.test(value),
+    digit: /[0-9]/.test(value),
+  };
+  for (const [rule, met] of Object.entries(rules)) {
+    document.querySelector(`#passwordRequirements li[data-rule="${rule}"]`).classList.toggle("met", met);
+  }
+});
 
 document.getElementById("showRegister").onclick = () => {
   document.getElementById("loginForm").classList.add("hidden");

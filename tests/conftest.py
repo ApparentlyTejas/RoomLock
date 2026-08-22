@@ -90,7 +90,7 @@ def _reset_rate_limits():
     yield
 
 
-def register_and_login(client, email: str, password: str = "test-password-123") -> str:
+def register_and_login(client, email: str, password: str = "Test-password-123") -> str:
     client.post("/auth/register", json={"email": email, "password": password})
     resp = client.post("/auth/login", data={"username": email, "password": password})
     return resp.json()["access_token"]
