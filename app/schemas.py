@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
@@ -97,6 +97,10 @@ class RecurringBookingCreate(BaseModel):
     # Weekly is the only frequency for now — the recurring-bookings story is
     # "book my weekly study group slot," not a general RRULE engine.
     occurrences: int = Field(ge=2, le=52)
+    # Calendar dates (UTC) to leave out entirely — e.g. a holiday or exam
+    # week falling on the usual weekly slot. Skipped occurrences aren't
+    # created at all, not created-then-cancelled.
+    skip_dates: list[date] = []
 
 
 class RecurringBookingResult(BaseModel):
@@ -120,3 +124,7 @@ class AssistantParseResponse(BaseModel):
     resource_name: str | None = None
     start_time: datetime | None = None
     end_time: datetime | None = None
+
+
+class CalendarFeedTokenOut(BaseModel):
+    token: str

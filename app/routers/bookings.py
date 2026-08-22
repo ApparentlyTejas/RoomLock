@@ -260,10 +260,15 @@ def create_recurring_booking(
     series_id = uuid4()
     created: list[Booking] = []
     skipped: list[dict] = []
+    skip_dates = set(payload.skip_dates)
 
     for i in range(payload.occurrences):
         occ_start = payload.start_time + timedelta(weeks=i)
         occ_end = payload.end_time + timedelta(weeks=i)
+
+        if occ_start.date() in skip_dates:
+            skipped.append({"start_time": occ_start, "reason": "Skipped by request"})
+            continue
 
         for attempt in range(_MAX_ATTEMPTS):
             overlap = (

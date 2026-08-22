@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 from app.database import SessionLocal
 from app.rate_limit import limiter
-from app.routers import admin, assistant, auth, bookings, google_calendar, resources
+from app.routers import admin, assistant, auth, bookings, calendar_feed, google_calendar, resources
 
 app = FastAPI(title="RoomLock")
 app.state.limiter = limiter
@@ -19,6 +19,7 @@ app.include_router(bookings.router)
 app.include_router(google_calendar.router)
 app.include_router(admin.router)
 app.include_router(assistant.router)
+app.include_router(calendar_feed.router)
 app.mount("/ui", StaticFiles(directory="app/static", html=True), name="ui")
 
 
