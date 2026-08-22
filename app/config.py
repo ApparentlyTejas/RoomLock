@@ -25,6 +25,21 @@ class Settings(BaseSettings):
     # just returns 503 rather than failing app startup.
     groq_api_key: str = ""
 
+    # Set per-container in docker-compose.scale-demo.yml so responses can
+    # identify which replica served them (X-Replica-Id header) — proves
+    # requests are actually being distributed across instances, not just
+    # asserted. Meaningless (and harmless) outside that demo.
+    replica_id: str = "unknown"
+
+    # Defaults are sized for a single uvicorn worker process (the normal
+    # deployment — see Dockerfile's WEB_CONCURRENCY default of 1). The
+    # scale-demo stack runs multiple worker processes per container and
+    # overrides these lower per-process so total connections across every
+    # process on every replica stay under Postgres's max_connections —
+    # see docker-compose.scale-demo.yml for the actual math.
+    db_pool_size: int = 20
+    db_max_overflow: int = 20
+
     class Config:
         env_file = ".env"
 

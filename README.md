@@ -85,6 +85,115 @@ concurrently — same correctness, higher throughput, no app-level lock.
 identical requests, asserts exactly one wins) so it's proven on every test
 run, not just the one manual load test.
 
+## Proving it at scale, not just in a toy test
+
+Everything above holds at 20-30 concurrent requests against one process.
+The natural follow-up question is whether it still holds under real
+concurrency, across multiple app instances, and when things fail
+mid-request — so `docker-compose.scale-demo.yml` stands up a second,
+throwaway stack (3 independent app containers behind nginx, sharing one
+Postgres) specifically to answer that with real numbers instead of
+assertions.
+
+```mermaid
+graph LR
+    LG[Load generator] --> NG[nginx<br/>round-robin, no session affinity]
+    NG --> A1[api1]
+    NG --> A2[api2]
+    NG --> A3[api3]
+    A1 --> PG[(Postgres<br/>bookings_no_overlap<br/>EXCLUDE constraint)]
+    A2 --> PG
+    A3 --> PG
+```
+
+**Same-slot correctness under maximum contention** — every request racing
+the exact same 1-hour slot, spread across all 3 replicas:
+
+| Concurrent requests | Succeeded | Rejected (409) | Overlapping bookings | Wall time | Errors |
+|---|---|---|---|---|---|
+| 300 | 1 | 299 | 0 | 1.8s | 0 |
+| 1,000 | 1 | 999 | 0 | 1.8s | 0 |
+| 2,000 | 1 | 1,999 | 0 | 3.0s | 0 |
+| **10,000** | **1** | **9,999** | **0** | 16.1s | 0 |
+
+Requests split ~evenly across replicas every run (e.g. 3,334 / 3,335 /
+3,331 at 10k) — confirmed via an `X-Replica-Id` response header, not
+assumed. Zero overlaps was verified by direct SQL query after every run,
+the same verification query from `db/001_schema.sql`, not just by trusting
+the HTTP status codes.
+
+**Realistic mixed load** — this is the scenario that answers "what's the
+success rate and latency," which the same-slot test structurally can't:
+racing one slot means ~100% of requests *should* fail, so success rate
+there is meaningless. 10,000 requests instead target 9,800 distinct
+resource/time slots (should all succeed) plus 200 requests deliberately
+aimed at an already-taken slot (should all correctly fail), mixed and
+shuffled:
+
+| | Count | % |
+|---|---|---|
+| Succeeded (201) | 9,800 | 98.00% |
+| Correctly rejected (409) | 200 | 2.00% |
+| Unexpected errors | **0** | **0.00%** |
+
+Every single non-success was one of the 200 deliberately-conflicting
+requests — the *unexpected* failure rate, which is the number that
+actually matters, is 0%. Sustained **321 req/s** across the 3-replica
+stack. Client-observed latency (round trip including network + load
+generator overhead — see the caveat below): **p50 55.8ms, p95 320ms, p99
+2,120ms, max 3,871ms**. The p99/max gap points at real queueing under a
+300-concurrent sustained burst, not a fluke — see "what actually broke"
+below.
+
+**Failure injection** (`tests/test_failure_injection.py`) — proving the
+retry/idempotency machinery survives the failures it was built for, not
+just the happy path: a transient deadlock recovers and still returns 201;
+exhausted retries return 503 (not a 500, not a hang) and leave zero
+partial rows; an idempotent resubmission still returns the *same* booking
+after retrying through a simulated deadlock; a hard-killed connection
+mid-transaction (simulating a crashed process) leaves no partial row,
+proven by Postgres's own atomicity guarantee, independent of any app code.
+
+**What actually broke building this** — reported because a load test that
+succeeds on the first try either got lucky or wasn't pushed hard enough.
+Every one of these was a real failure this project hit, not a
+hypothetical:
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| Connections reset under load | nginx defaults to HTTP/1.0 with no keepalive to the upstream — a fresh TCP connection per request | `proxy_http_version 1.1` + `proxy_set_header Connection ""` + upstream `keepalive` |
+| Client-side timeouts waiting for a response | SQLAlchemy's unconfigured default pool (5 + 10 overflow = 15 connections/process) undersized for concurrent load | Explicit, documented `pool_size`/`max_overflow`, sized against Postgres's `max_connections` |
+| `"no live upstreams"` — nginx briefly refused everything | nginx's default passive health check (`max_fails=1`) pulled all 3 replicas out of rotation after one transient blip each | `max_fails=5 fail_timeout=3s` — tolerate a few failures before pulling a replica |
+| 62% of a realistic-load run came back `502`/`500` | FastAPI dispatches sync `def` routes through a bounded thread pool (~40 threads) per process — one process per container wasn't enough concurrency | `WEB_CONCURRENCY` (uvicorn `--workers`), tunable per-deployment via env var so the real single-replica deployment isn't affected |
+
+None of these were Postgres or the booking logic failing — every one was
+infrastructure capacity/configuration between the load generator and the
+database, which is exactly what you'd want a load test to actually find.
+
+**Observability**: `/metrics` (Prometheus format, via
+`prometheus-fastapi-instrumentator`) and structured JSON access logs on
+every request (`app/observability.py`) — not wired up to a hosted
+dashboard nobody would watch, but real enough that the numbers above could
+have been computed from it. (They weren't, in the end — see the
+methodology note below.)
+
+**Methodology, honestly**: everything here — nginx, 3 app containers,
+Postgres, and the load generator itself — ran on one laptop, sharing the
+same CPU cores. That's a real constraint on the *latency* numbers (a
+properly isolated benchmark, load generator on separate hardware from the
+system under test, would show lower and less noisy tail latency) but not
+on the *correctness* numbers (0 overlapping bookings doesn't get better or
+worse based on what else the CPU was doing). Latency was measured
+client-side rather than scraped from `/metrics`, because with multiple
+worker processes across multiple replicas, a single `/metrics` scrape only
+sees whichever one process happened to serve that request — real
+multi-process/multi-instance Prometheus setups solve this by scraping
+every instance separately and aggregating at query time, which is more
+infrastructure than a load-test footnote justifies here.
+
+Reproduce it yourself: `docker-compose.scale-demo.yml` has the full setup
+and commands in its header comment.
+
 ## Everything else, in the order it was built
 
 - **Auth**: JWT (python-jose) + bcrypt password hashing, plus optional
@@ -118,6 +227,21 @@ run, not just the one manual load test.
   and separately left a default duration unset — both fixed by doing that
   arithmetic in code instead of trusting the model with it (see
   `app/groq_client.py`).
+- **iCal subscription feed**: a per-user secret-token URL any calendar app
+  can subscribe to once (`GET /calendar/feed/{token}.ics`) and it stays
+  live from then on — no OAuth, unlike the Google Calendar integration, so
+  it works regardless of calendar provider.
+- **Observability**: `/metrics` (Prometheus format) and structured JSON
+  access logs on every request — see "Proving it at scale" above for what
+  they were actually used for.
+- **Failure injection tests**: deliberately-triggered deadlocks, exhausted
+  retries, and a hard-killed mid-transaction connection, proving the
+  resilience code recovers correctly instead of only ever exercising the
+  happy path — see "Proving it at scale" above.
+- **Horizontal scaling, proven not asserted**: a 3-replica stack
+  (`docker-compose.scale-demo.yml`) behind nginx, re-running the
+  same-slot concurrency test across independent app processes — see
+  "Proving it at scale" above.
 
 ## Setup
 

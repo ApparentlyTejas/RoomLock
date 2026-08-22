@@ -6,6 +6,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
 from app.database import SessionLocal
+from app.observability import setup_observability
 from app.rate_limit import limiter
 from app.routers import admin, assistant, auth, bookings, calendar_feed, google_calendar, resources
 
@@ -21,6 +22,11 @@ app.include_router(admin.router)
 app.include_router(assistant.router)
 app.include_router(calendar_feed.router)
 app.mount("/ui", StaticFiles(directory="app/static", html=True), name="ui")
+
+# Registered after every router so route-template labels (e.g.
+# /bookings/{booking_id}, not raw paths with real ids in them) are picked
+# up correctly for the /metrics histograms.
+setup_observability(app)
 
 
 @app.get("/", include_in_schema=False)
