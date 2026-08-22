@@ -2,11 +2,72 @@
 
 Concurrency-safe resource booking API: found a double-booking race under
 load, fixed it two different ways (row lock, then a Postgres exclusion
-constraint), and load-tested both to compare correctness and throughput.
+constraint), load-tested both to compare correctness and throughput, and
+then kept building — room metadata, recurring bookings, admin analytics,
+and a natural-language booking assistant on top of it.
 
-Note: Postgres is exposed on host port **5434** (not 5432), since a native
-Postgres was already using 5432 (and 5433) on this machine. `docker compose
-exec` commands below go straight into the container and are unaffected.
+**Live demo:** **https://bookingapi-i4cg.onrender.com**
+(free-tier hosting — if it's been quiet for a while, the first request can
+take 30-50s to wake up. Everything after that is normal speed.)
+
+![Demo: asking the natural-language assistant to book a room, confirming, then toggling dark mode](docs/demo.gif)
+
+## The core story: a real race condition, fixed twice, measured both times
+
+Two requests can both `SELECT` "is this slot free?", both get "yes," and
+both `INSERT` — nothing ties the check to the write. Racing 30 concurrent
+users at the exact same slot for 10 seconds, against each version:
+
+| Version | Requests | Succeeded | Rejected (409) | Overlapping bookings in DB | Throughput |
+|---|---|---|---|---|---|
+| Naive check-then-insert | — | multiple | — | **4 bookings, 6 overlapping pairs** | — |
+| Fix 1: `SELECT ... FOR UPDATE` row lock | 4,128 | 1 | 4,127 | 0 | 420 req/s |
+| Fix 2: Postgres `EXCLUDE` constraint | 4,448 | 1 | 4,447 | 0 | 452-570 req/s |
+
+Fix 1 works, but the lock is on the *resource row*, not the *timeslot* — it
+serializes every booking attempt on that resource, including ones that
+don't overlap at all. Fix 2 (`db/002_add_exclusion_constraint.sql`) lets
+Postgres reject only genuinely overlapping rows at commit time via
+`EXCLUDE USING gist (resource_id WITH =, tstzrange(start_time, end_time)
+WITH &&)`, so non-overlapping bookings on the same resource commit
+concurrently — same correctness, higher throughput, no app-level lock.
+`tests/test_concurrency.py` automates the same check (20 concurrent
+identical requests, asserts exactly one wins) so it's proven on every test
+run, not just the one manual load test.
+
+## Everything else, in the order it was built
+
+- **Auth**: JWT (python-jose) + bcrypt password hashing, plus optional
+  "Sign in with Google" / calendar sync.
+- **Idempotency keys**: resubmitting a booking with the same key returns
+  the original instead of erroring or duplicating — `pg_advisory_xact_lock`
+  scoped to `(user_id, idempotency_key)` handles true duplicate submissions
+  racing each other, separately from the overlap-check machinery above.
+- **Role-based admin**: `is_admin` gate on room management and user roles,
+  bootstrapped via direct SQL (no self-promotion endpoint, by design).
+- **Automated tests**: pytest against a real throwaway Postgres database
+  (not SQLite — the whole point is Postgres-specific guarantees a mock
+  can't exercise), including the concurrency test above.
+- **Booking editing**: change the time on an existing booking; Postgres
+  checks the exclusion constraint on `UPDATE` the same way it does on
+  `INSERT`.
+- **Room metadata**: capacity, amenities.
+- **CSV bulk-import**: admins add many rooms at once instead of one-by-one.
+- **Admin analytics**: usage stats, busiest rooms/hours.
+- **Recurring bookings**: weekly series, partial success if some weeks are
+  taken, cancel-one or cancel-the-series.
+- **Dark mode + installable PWA**: persists across pages, offline-capable
+  app shell.
+- **Natural-language booking assistant**: "book Meeting Room A tomorrow at
+  3pm" gets parsed by an LLM (GPT OSS 120B via Groq's free tier) into a
+  structured draft — but the model never books anything directly. Every
+  field is re-validated against the real resource list and clock, and the
+  draft still goes through the exact same `POST /bookings` overlap-check +
+  exclusion-constraint path as any other request. Two real bugs were found
+  building this: the model got DST-aware UTC conversion wrong by an hour,
+  and separately left a default duration unset — both fixed by doing that
+  arithmetic in code instead of trusting the model with it (see
+  `app/groq_client.py`).
 
 ## Setup
 
@@ -17,10 +78,10 @@ docker compose up --build
 Then apply the schema manually (not auto-run via `Base.metadata.create_all()`):
 
 ```bash
-docker compose exec db psql -U app -d bookingapi -f /db/001_schema.sql
-docker compose exec db psql -U app -d bookingapi -f /db/002_add_exclusion_constraint.sql
-docker compose exec db psql -U app -d bookingapi -f /db/003_add_idempotency_key.sql
-docker compose exec db psql -U app -d bookingapi -f /db/004_add_google_calendar.sql
+for f in db/*.sql; do
+  echo "Applying $f..."
+  docker compose exec db psql -U app -d bookingapi -f "/db/$(basename "$f")"
+done
 ```
 
 Before first run, generate real secrets for `.env` (the checked-in placeholders are dev-only and must not be used anywhere reachable by anyone else):
@@ -37,13 +98,18 @@ curl http://localhost:8000/health
 open http://localhost:8000/docs
 ```
 
+Note: Postgres is exposed on host port **5434** (not 5432), since a native
+Postgres was already using 5432 (and 5433) on this machine. `docker compose
+exec` commands above go straight into the container and are unaffected.
+
 ## Calendar UI
 
-A minimal static calendar page is served at `http://localhost:8000/ui/` —
-register/log in, pick a resource and date, and click an hourly slot to book
-it. A "Resend last booking" button re-submits the same request (same
-idempotency key) to demonstrate that a retry returns the original booking
-instead of erroring or double-booking.
+A calendar app is served at `http://localhost:8000/ui/` (`/ui/admin.html`
+for admins) — register/log in, pick a resource and date, and click an
+hourly slot to book it, or just type what you want into the "Or just
+describe it" box. A "Resend last booking" button re-submits the same
+request (same idempotency key) to demonstrate that a retry returns the
+original booking instead of erroring or double-booking.
 
 ## Auth flow
 
@@ -72,9 +138,10 @@ docker compose exec db psql -U app -d bookingapi \
   -c "UPDATE users SET is_admin = true WHERE email = 'you@example.com';"
 ```
 
-From there, that account can promote/demote anyone else from `/ui/admin.html`
-(linked in the header once logged in as an admin) — no more manual SQL
-needed. The API refuses to demote the last remaining admin.
+From there, that account can promote/demote anyone else, manage rooms
+(including CSV bulk-import), and view usage analytics from
+`/ui/admin.html` (linked in the header once logged in as an admin) — no
+more manual SQL needed. The API refuses to demote the last remaining admin.
 
 ## Create a resource and a booking
 
@@ -84,7 +151,7 @@ TOKEN="<access_token from an admin account>"
 curl -X POST http://localhost:8000/resources \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "Meeting Room A"}'
+  -d '{"name": "Meeting Room A", "capacity": 8, "amenities": ["Projector", "Whiteboard"]}'
 # -> {"id": 1, ...}
 
 TOKEN="<access_token from any account>"
@@ -97,6 +164,33 @@ curl -X POST http://localhost:8000/bookings \
 
 curl "http://localhost:8000/bookings?resource_id=1&date=2026-09-01" \
   -H "Authorization: Bearer $TOKEN"
+```
+
+Or skip the manual JSON entirely:
+
+```bash
+curl -X POST http://localhost:8000/assistant/parse \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "book Meeting Room A next Tuesday at 2pm"}'
+# -> a draft {resource_id, start_time, end_time} for the frontend to
+#    confirm before it hits POST /bookings above
+```
+
+## Recurring bookings
+
+```bash
+curl -X POST http://localhost:8000/bookings/recurring \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"resource_id": 1, "start_time": "2026-09-01T10:00:00Z", "end_time": "2026-09-01T11:00:00Z", "occurrences": 6}'
+# books 6 weekly occurrences starting from start_time; a slot that's
+# already taken in a given week is reported back as "skipped" rather than
+# aborting the whole series
+
+curl -X DELETE "http://localhost:8000/bookings/series/<series_id>" \
+  -H "Authorization: Bearer $TOKEN"
+# cancels this and all future occurrences in the series
 ```
 
 ## Running tests
@@ -112,9 +206,11 @@ prove the actual `EXCLUDE` constraint and advisory-lock behavior work, which
 a non-Postgres test double couldn't exercise. That file races 20 concurrent
 identical requests at the same slot and asserts exactly one wins, zero
 overlaps land in the database — the automated version of the manual Locust
-load test below.
+load test below. 66 tests total, covering auth, resources, bookings,
+booking edits, recurring bookings, admin, and the booking assistant
+(with the Groq call mocked so tests don't depend on network/API cost).
 
-## Load test (step 3 — reproduce the race condition)
+## Load test (reproducing the race condition)
 
 ```bash
 pip install locust
@@ -130,10 +226,11 @@ bottom of `db/001_schema.sql`:
 docker compose exec db psql -U app -d bookingapi
 ```
 
-## Google Calendar sync
+<details>
+<summary><strong>Google Calendar sync</strong> (optional — click to expand setup)</summary>
 
-Optional. When connected, every booking is silently synced to the user's
-Google Calendar (and un-synced on cancel), so Google's own reminder system
+When connected, every booking is silently synced to the user's Google
+Calendar (and un-synced on cancel), so Google's own reminder system
 handles notifying them — no email infra of our own. It's entirely
 best-effort: any Google API failure is caught and logged nowhere, on
 purpose, since it must never affect whether a booking succeeds/cancels.
@@ -173,10 +270,53 @@ Leaving `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` blank disables the
 integration cleanly — `/auth/google/login` and `/auth/google/connect` both
 return 503, surfaced in the UI as a toast rather than a broken redirect.
 
+</details>
+
+<details>
+<summary><strong>Natural-language booking assistant</strong> (optional — click to expand setup)</summary>
+
+Free tier, no credit card required:
+
+1. Go to [console.groq.com/keys](https://console.groq.com/keys), sign in,
+   create an API key.
+2. Add it to `.env`:
+   ```bash
+   GROQ_API_KEY=...
+   ```
+3. Restart the API. The "Or just describe it" box appears on the booking
+   page automatically once a key is configured (`GET /assistant/status`
+   drives that check) — leaving it blank disables the feature cleanly,
+   same pattern as the Google integration above.
+
+The model (`openai/gpt-oss-120b`, open-weight, served by Groq — originally
+Llama 3.3 70B until Groq decommissioned it) is only ever asked to extract
+*local wall-clock* date/time and match a resource name from free text.
+Timezone conversion and default-duration math are done in Python
+(`app/groq_client.py`, `app/routers/assistant.py`), not trusted to the
+model — see the comments there for the two real bugs that motivated that
+split. Every field is re-validated server-side before it's ever shown to
+the user as a draft, and the draft still has to go through the same
+`POST /bookings` guarantee as any other booking.
+
+</details>
+
+## Deployment
+
+Live at **https://bookingapi-i4cg.onrender.com** — free tier throughout:
+- **App**: [Render](https://render.com), Docker web service built straight
+  from this repo's `Dockerfile`.
+- **Database**: [Neon](https://neon.tech), serverless Postgres (`btree_gist`
+  extension enabled for the exclusion constraint).
+
+Free-tier tradeoff: Render's free web service sleeps after 15 minutes
+idle, so the first request after a quiet period takes 30-50s to wake up —
+fine for sharing with a small group, not for anything latency-sensitive.
+
 ## Security notes
 
 - **Rate limited**: `/auth/login` (10/min) and `/auth/register` (5/min) per
-  IP, via `slowapi` — see `app/rate_limit.py`.
+  IP, via `slowapi` — see `app/rate_limit.py`. The booking assistant is
+  separately rate-limited (10/min) since each call costs a real API request.
 - **Passwords**: bcrypt-hashed (never stored/logged in plaintext), minimum
   8 characters enforced at the schema level (`app/schemas.py`).
 - **Google refresh tokens**: encrypted at rest (Fernet, `app/crypto.py`) —
@@ -184,7 +324,12 @@ return 503, surfaced in the UI as a toast rather than a broken redirect.
   `TOKEN_ENCRYPTION_KEY` to be set; if it changes, previously-connected
   users' tokens become undecryptable and they'll need to reconnect.
 - **JWT secret**: must be a real random value in any environment other
-  users can reach — see the placeholder warning in `.env.example`.
+  users can reach.
+- **LLM output is never trusted directly**: every field the booking
+  assistant returns (resource id, date, time) is re-validated against the
+  real database and clock before being shown to the user, and the actual
+  booking write is unreachable from the model — it can only produce a
+  draft the user must explicitly confirm through the normal endpoint.
 - Known gaps, if this goes further: no email verification on registration
   (anyone can register with any email address without proving they own it),
   and auth tokens live in `localStorage` rather than an httpOnly cookie
