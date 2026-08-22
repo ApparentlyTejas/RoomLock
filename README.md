@@ -15,8 +15,48 @@ take 30-50s to wake up. Everything after that is normal speed.)
 ## The core story: a real race condition, fixed twice, measured both times
 
 Two requests can both `SELECT` "is this slot free?", both get "yes," and
-both `INSERT` — nothing ties the check to the write. Racing 30 concurrent
-users at the exact same slot for 10 seconds, against each version:
+both `INSERT` — nothing ties the check to the write:
+
+```mermaid
+sequenceDiagram
+    participant A as Request A
+    participant B as Request B
+    participant DB as Postgres
+
+    A->>DB: SELECT — is 10:00-11:00 free?
+    DB-->>A: yes
+    B->>DB: SELECT — is 10:00-11:00 free?
+    DB-->>B: yes
+    A->>DB: INSERT booking A
+    DB-->>A: 201 Created
+    B->>DB: INSERT booking B
+    DB-->>B: 201 Created
+    Note over DB: both committed —<br/>two overlapping bookings, same slot
+```
+
+The fix isn't a bigger check — it's removing the gap between checking and
+writing entirely, by giving Postgres itself a constraint it enforces at
+commit time regardless of what any `SELECT` saw beforehand:
+
+```mermaid
+sequenceDiagram
+    participant A as Request A
+    participant B as Request B
+    participant DB as Postgres (EXCLUDE constraint)
+
+    A->>DB: SELECT — fast-path check (optimistic, not the guarantee)
+    DB-->>A: yes, looks free
+    B->>DB: SELECT — fast-path check
+    DB-->>B: yes, looks free
+    A->>DB: INSERT booking A
+    DB-->>A: 201 Created
+    B->>DB: INSERT booking B
+    DB--xB: rejected — violates bookings_no_overlap
+    Note over B: caught as IntegrityError -> 409
+```
+
+Racing 30 concurrent users at the exact same slot for 10 seconds, against
+each version:
 
 | Version | Requests | Succeeded | Rejected (409) | Overlapping bookings in DB | Throughput |
 |---|---|---|---|---|---|
@@ -296,7 +336,20 @@ Timezone conversion and default-duration math are done in Python
 model — see the comments there for the two real bugs that motivated that
 split. Every field is re-validated server-side before it's ever shown to
 the user as a draft, and the draft still has to go through the same
-`POST /bookings` guarantee as any other booking.
+`POST /bookings` guarantee as any other booking:
+
+```mermaid
+flowchart LR
+    A["'book Meeting Room A<br/>tomorrow at 3pm'"] --> B[Groq LLM:<br/>extract room + local date/time]
+    B --> C{Server-side validation:<br/>real resource id?<br/>valid date/time?<br/>end after start?<br/>not in the past?}
+    C -- invalid or unsure --> D[needs_clarification<br/>— nothing booked]
+    C -- valid --> E[Draft shown to user]
+    E -- user confirms --> F["POST /bookings<br/>— same overlap-check + EXCLUDE<br/>constraint as any other request"]
+```
+
+The model never has a path to write a booking directly — confirming a
+draft is just a normal `POST /bookings` call, indistinguishable from one
+typed in by hand.
 
 </details>
 
@@ -307,6 +360,14 @@ Live at **https://bookingapi-i4cg.onrender.com** — free tier throughout:
   from this repo's `Dockerfile`.
 - **Database**: [Neon](https://neon.tech), serverless Postgres (`btree_gist`
   extension enabled for the exclusion constraint).
+
+```mermaid
+graph LR
+    User[Browser] -->|HTTPS| Render[Render<br/>FastAPI in Docker]
+    Render -->|SQL, incl. the<br/>EXCLUDE constraint| Neon[(Neon<br/>Postgres)]
+    Render -.optional.-> Groq[Groq API<br/>booking assistant]
+    Render -.optional.-> Google[Google Calendar API<br/>event sync]
+```
 
 Free-tier tradeoff: Render's free web service sleeps after 15 minutes
 idle, so the first request after a quiet period takes 30-50s to wake up —
