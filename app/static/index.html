@@ -47,14 +47,14 @@
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #100f0c;
-      --card: #1b1916;
-      --border: #38332a;
-      --text: #f2ede2;
-      --muted: #a9a08c;
-      --faint: #756e5c;
-      --ink: #24221a;
-      --ink-2: #34301f;
+      --bg: #0d1117;
+      --card: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #9198a1;
+      --faint: #6e7681;
+      --ink: #1c2128;
+      --ink-2: #2d333b;
       --accent: #4a90d9;
       --accent-dark: #2e6da4;
       --accent-soft: rgba(74, 144, 217, 0.16);
@@ -69,22 +69,22 @@
       --ok-bg: rgba(163, 228, 188, 0.14);
       --ok-border: #a3e4bc;
       --ok: #4ade80;
-      --surface-2: #232019;
-      --skel-1: #201d18;
-      --skel-2: #2a2620;
+      --surface-2: #21262d;
+      --skel-1: #1c2128;
+      --skel-2: #262c33;
       --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 32px -14px rgba(0, 0, 0, 0.6);
       --shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 14px -4px rgba(0, 0, 0, 0.6);
     }
   }
   :root[data-theme="dark"] {
-    --bg: #100f0c;
-    --card: #1b1916;
-    --border: #38332a;
-    --text: #f2ede2;
-    --muted: #a9a08c;
-    --faint: #756e5c;
-    --ink: #24221a;
-    --ink-2: #34301f;
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #9198a1;
+    --faint: #6e7681;
+    --ink: #1c2128;
+    --ink-2: #2d333b;
     --accent: #4a90d9;
     --accent-dark: #2e6da4;
     --accent-soft: rgba(74, 144, 217, 0.16);
@@ -99,9 +99,9 @@
     --ok-bg: rgba(163, 228, 188, 0.14);
     --ok-border: #a3e4bc;
     --ok: #4ade80;
-    --surface-2: #232019;
-    --skel-1: #201d18;
-    --skel-2: #2a2620;
+    --surface-2: #21262d;
+    --skel-1: #1c2128;
+    --skel-2: #262c33;
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 32px -14px rgba(0, 0, 0, 0.6);
     --shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 14px -4px rgba(0, 0, 0, 0.6);
   }
@@ -586,14 +586,7 @@
   @media (max-width: 900px) {
     .booking-info { border-right: none; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 1.4rem; }
   }
-  .capacity-filter { display: flex; align-items: center; gap: 0.5rem; margin: -0.55rem 0 0; }
-  .capacity-filter label { margin: 0; font-size: 0.78rem; font-weight: 500; color: var(--muted); flex-shrink: 0; }
-  .capacity-filter input {
-    width: 5.5rem;
-    margin: 0;
-    padding: 0.4rem 0.55rem;
-    font-size: 0.85rem;
-  }
+  .capacity-filter { margin-bottom: 0.9rem; }
   .resource-meta { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
   .meta-row { display: flex; align-items: center; gap: 0.55rem; font-size: 0.82rem; color: var(--muted); }
   .meta-row svg { flex-shrink: 0; color: var(--faint); }
