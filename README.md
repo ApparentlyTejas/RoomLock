@@ -242,6 +242,15 @@ and commands in its header comment.
   (`docker-compose.scale-demo.yml`) behind nginx, re-running the
   same-slot concurrency test across independent app processes — see
   "Proving it at scale" above.
+- **Room capacity search**: filter the resource picker by minimum
+  capacity ("need seats for at least...") so booking a large lecture hall
+  doesn't mean guessing which room name is big enough.
+- **Password strength requirements**: 8+ characters, upper/lowercase, a
+  number, with a live checklist that ticks off each rule as you type
+  rather than only telling you what's wrong after you submit.
+- **Small interaction polish**: Enter submits login/register/the
+  assistant/admin forms instead of requiring a mouse click on the button,
+  and the email field autofocuses when the login screen appears.
 
 ## Setup
 
