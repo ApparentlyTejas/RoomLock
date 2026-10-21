@@ -23,7 +23,7 @@ may not actually land concurrently. Get one with:
 
 import os
 
-from locust import HttpUser, task, between
+from locust import HttpUser, between, task
 
 TEST_EMAIL = os.environ.get("TEST_EMAIL", "loadtest@example.com")
 TEST_PASSWORD = os.environ.get("TEST_PASSWORD", "loadtest-password")

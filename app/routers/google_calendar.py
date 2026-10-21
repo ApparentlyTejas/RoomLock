@@ -25,7 +25,8 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import crypto, google_calendar as gcal
+from app import crypto
+from app import google_calendar as gcal
 from app.auth import create_access_token, get_current_user
 from app.database import get_db
 from app.models import User
@@ -124,7 +125,10 @@ def _finish_login(db: Session, token_body: dict, refresh_token: str) -> Redirect
         db.rollback()
     db.refresh(user)
 
-    access_token = create_access_token(subject=user.email)
+    # See the matching comment in routers/auth.py: email is non-nullable in
+    # the schema, but the sqlalchemy mypy plugin widens legacy Column()
+    # attributes to Optional regardless.
+    access_token = create_access_token(subject=user.email)  # type: ignore[arg-type]
     query = urlencode({"login_token": access_token, "email": user.email, "google_connected": "1"})
     return RedirectResponse(url=f"/ui/?{query}")
 

@@ -5,7 +5,7 @@ since those endpoints are already under /resources; this router is just for
 managing who has that access in the first place.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
@@ -48,7 +48,7 @@ def update_user_role(
 
 @router.get("/analytics")
 def analytics(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     busiest_rooms = (
         db.query(Resource.name, func.count(Booking.id).label("bookings"))

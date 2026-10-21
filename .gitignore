@@ -10,3 +10,9 @@ CLAUDE.md
 benchmark_results/*.md
 benchmark_results/*.json
 !benchmark_results/.gitkeep
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/

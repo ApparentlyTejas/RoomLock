@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app import groq_client
 
 
 def _future_local_date_and_hour(hours_from_now: int, hour: int = 15):
-    future = datetime.now(timezone.utc) + timedelta(hours=hours_from_now)
+    future = datetime.now(UTC) + timedelta(hours=hours_from_now)
     return future.strftime("%Y-%m-%d"), f"{hour:02d}:00"
 
 

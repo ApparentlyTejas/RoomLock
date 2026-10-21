@@ -1,5 +1,7 @@
 # RoomLock
 
+![CI](https://github.com/ApparentlyTejas/RoomLock/actions/workflows/ci.yml/badge.svg)
+
 Concurrency-safe resource booking API, themed for booking study rooms and
 seminar spaces around FAU Erlangen-Nürnberg: found a double-booking race
 under load, fixed it two different ways (row lock, then a Postgres
@@ -403,6 +405,22 @@ overlaps land in the database — the automated version of the manual Locust
 load test below. 66 tests total, covering auth, resources, bookings,
 booking edits, recurring bookings, admin, and the booking assistant
 (with the Groq call mocked so tests don't depend on network/API cost).
+
+### Lint, type-check, coverage (CI)
+
+`.github/workflows/ci.yml` runs this on every push/PR: `ruff check .`,
+`mypy app`, and the pytest suite above with coverage against a real
+Postgres 16 service container — same image as `docker-compose.yml`, with
+`tests/conftest.py` creating/migrating/dropping `bookingapi_test` itself.
+Coverage (XML + HTML) is uploaded as a workflow artifact. Locally, with a
+Postgres reachable via `DATABASE_URL`:
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+mypy app
+pytest --cov=app --cov-report=term-missing --cov-report=xml
+```
 
 ## Load test (reproducing the race condition)
 

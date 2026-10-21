@@ -22,7 +22,7 @@ approach, just the model id changed.)
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests
 
@@ -75,7 +75,7 @@ def combine_local_datetime(date_str: str, time_str: str) -> datetime:
 
     naive = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
     local = naive.replace(tzinfo=ZoneInfo(DISPLAY_TZ))
-    return local.astimezone(timezone.utc)
+    return local.astimezone(UTC)
 
 
 def parse_booking_request(message: str, resources: list[dict], now_utc: datetime) -> dict:

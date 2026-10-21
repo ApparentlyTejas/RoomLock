@@ -21,7 +21,7 @@ must never break the actual booking. That's enforced at the call site, not
 here.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
@@ -47,7 +47,7 @@ def create_state_token(flow: str, user_id: int | None = None) -> str:
     payload = {
         "aud": STATE_AUDIENCE,
         "flow": flow,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        "exp": datetime.now(UTC) + timedelta(minutes=5),
     }
     if user_id is not None:
         payload["sub"] = str(user_id)

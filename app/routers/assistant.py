@@ -13,7 +13,7 @@ invents a resource_id, returns an unparseable or past date, or just isn't
 confident, this returns needs_clarification instead of a draft.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -52,11 +52,13 @@ def parse(
     resource_by_id = {r.id: r for r in resources}
     resource_list = [{"id": r.id, "name": r.name} for r in resources]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     try:
         parsed = groq_client.parse_booking_request(payload.message, resource_list, now)
     except Exception:
-        raise HTTPException(status_code=502, detail="Couldn't reach the booking assistant, please try again.")
+        raise HTTPException(
+            status_code=502, detail="Couldn't reach the booking assistant, please try again."
+        ) from None
 
     if parsed.get("clarification"):
         return AssistantParseResponse(needs_clarification=True, clarification=parsed["clarification"])

@@ -60,7 +60,7 @@ convenience layered on top of the booking guarantee, never allowed to affect
 whether a booking succeeds/is cancelled.
 """
 
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -68,7 +68,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
-from app import crypto, google_calendar as gcal
+from app import crypto
+from app import google_calendar as gcal
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Booking, Resource, User
@@ -93,7 +94,7 @@ def list_bookings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    day_start = datetime.combine(date, time.min, tzinfo=timezone.utc)
+    day_start = datetime.combine(date, time.min, tzinfo=UTC)
     day_end = day_start + timedelta(days=1)
     return (
         db.query(Booking)
@@ -202,14 +203,16 @@ def create_booking(
                 )
                 if existing:
                     return existing
-            raise HTTPException(status_code=409, detail="Resource already booked for this time")
+            raise HTTPException(
+                status_code=409, detail="Resource already booked for this time"
+            ) from None
         except OperationalError:
             db.rollback()
             if attempt < _MAX_ATTEMPTS - 1:
                 continue
             raise HTTPException(
                 status_code=503, detail="High contention booking this resource, please retry"
-            )
+            ) from None
         db.refresh(booking)
 
         if current_user.google_refresh_token:
@@ -218,12 +221,15 @@ def create_booking(
             # (network, revoked/expired token, quota) must never surface as
             # a failed booking — the booking already committed above.
             try:
+                # start_time/end_time are `nullable=False` in the schema;
+                # the sqlalchemy mypy plugin still widens legacy
+                # Column()-style attributes to Optional regardless.
                 event_id = gcal.create_event(
                     crypto.decrypt(current_user.google_refresh_token),
                     summary=f"{resource.name} booking",
                     description="Booked via RoomLock",
-                    start=booking.start_time,
-                    end=booking.end_time,
+                    start=booking.start_time,  # type: ignore[arg-type]
+                    end=booking.end_time,  # type: ignore[arg-type]
                 )
                 booking.google_event_id = event_id
                 db.commit()
@@ -289,7 +295,10 @@ def create_recurring_booking(
                 user_id=current_user.id,
                 start_time=occ_start,
                 end_time=occ_end,
-                series_id=series_id,
+                # series_id is a plain uuid.UUID; the sqlalchemy mypy plugin
+                # expects its own dialect-specific UUID return type here —
+                # a stub-generics mismatch, not a real type error.
+                series_id=series_id,  # type: ignore[arg-type]
             )
             db.add(booking)
             try:
@@ -304,19 +313,24 @@ def create_recurring_booking(
                 db.rollback()
                 if attempt < _MAX_ATTEMPTS - 1:
                     continue
-                skipped.append({"start_time": occ_start, "reason": "High contention, please retry this week separately"})
+                skipped.append(
+                    {"start_time": occ_start, "reason": "High contention, please retry this week separately"}
+                )
                 break
             db.refresh(booking)
             created.append(booking)
 
             if current_user.google_refresh_token:
                 try:
+                    # See the matching comment above: start_time/end_time are
+                    # non-nullable, but the sqlalchemy mypy plugin widens
+                    # legacy Column()-style attributes to Optional regardless.
                     event_id = gcal.create_event(
                         crypto.decrypt(current_user.google_refresh_token),
                         summary=f"{resource.name} booking",
                         description="Booked via RoomLock",
-                        start=booking.start_time,
-                        end=booking.end_time,
+                        start=booking.start_time,  # type: ignore[arg-type]
+                        end=booking.end_time,  # type: ignore[arg-type]
                     )
                     booking.google_event_id = event_id
                     db.commit()
@@ -325,7 +339,12 @@ def create_recurring_booking(
 
             break
 
-    return RecurringBookingResult(series_id=series_id, created=created, skipped=skipped)
+    # `created` holds ORM Booking rows, not BookingOut schemas — FastAPI's
+    # response_model serializes them via from_attributes at runtime, which
+    # mypy has no way to verify statically.
+    return RecurringBookingResult(
+        series_id=series_id, created=created, skipped=skipped  # type: ignore[arg-type]
+    )
 
 
 @router.delete("/series/{series_id}", status_code=204)
@@ -342,9 +361,12 @@ def cancel_booking_series(
     if not bookings:
         raise HTTPException(status_code=404, detail="Booking series not found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for booking in bookings:
-        if booking.end_time <= now:
+        # end_time is `nullable=False` in the schema; the sqlalchemy mypy
+        # plugin still widens legacy Column()-style attributes to Optional
+        # regardless.
+        if booking.end_time <= now:  # type: ignore[operator]
             continue  # leave past occurrences in history, only cancel future ones
         if booking.google_event_id and current_user.google_refresh_token:
             try:
@@ -364,7 +386,7 @@ def update_booking(
 ):
     if payload.end_time <= payload.start_time:
         raise HTTPException(status_code=422, detail="end_time must be after start_time")
-    if payload.end_time <= datetime.now(timezone.utc):
+    if payload.end_time <= datetime.now(UTC):
         raise HTTPException(status_code=400, detail="Can't move a booking to a time in the past")
 
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
@@ -372,7 +394,7 @@ def update_booking(
         raise HTTPException(status_code=404, detail="Booking not found")
     if booking.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own bookings")
-    if booking.end_time <= datetime.now(timezone.utc):
+    if booking.end_time <= datetime.now(UTC):  # type: ignore[operator]
         raise HTTPException(status_code=400, detail="Can't edit a booking that has already passed")
 
     # Same "optimistic SELECT + EXCLUDE constraint as guarantee" pattern as
@@ -402,14 +424,16 @@ def update_booking(
             db.rollback()
             if attempt < _MAX_ATTEMPTS - 1:
                 continue
-            raise HTTPException(status_code=409, detail="Resource already booked for this time")
+            raise HTTPException(
+                status_code=409, detail="Resource already booked for this time"
+            ) from None
         except OperationalError:
             db.rollback()
             if attempt < _MAX_ATTEMPTS - 1:
                 continue
             raise HTTPException(
                 status_code=503, detail="High contention updating this booking, please retry"
-            )
+            ) from None
         db.refresh(booking)
 
         if booking.google_event_id and current_user.google_refresh_token:
@@ -437,7 +461,7 @@ def cancel_booking(
         raise HTTPException(status_code=404, detail="Booking not found")
     if booking.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only cancel your own bookings")
-    if booking.end_time <= datetime.now(timezone.utc):
+    if booking.end_time <= datetime.now(UTC):  # type: ignore[operator]
         raise HTTPException(status_code=400, detail="Can't cancel a booking that has already passed")
 
     if booking.google_event_id and current_user.google_refresh_token:

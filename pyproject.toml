@@ -1,0 +1,40 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    # FastAPI's Depends()/Query()/Body() pattern is a call used as a default
+    # argument by design (that's how the dependency-injection system works) —
+    # not the mutable-default-argument bug this rule is meant to catch.
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# tests/conftest.py overrides DATABASE_URL in the environment before
+# importing anything from app.* (pydantic-settings reads the env once, at
+# import time) — the imports below that point are deliberately not at the
+# top of the file.
+"tests/conftest.py" = ["E402"]
+# groq_client.py's long lines are the LLM prompt text itself — wrapping it
+# would just be inserting line breaks into a string an LLM reads, not a
+# readability win.
+"app/groq_client.py" = ["E501"]
+# Test suite predates this lint pass; a handful of long assertion/fixture
+# lines are left as-is rather than reformatting already-passing test logic.
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true
+exclude = ["tests/", "scripts/", "loadtest/"]
+# app/models.py uses SQLAlchemy's legacy Column() mapping style (not the
+# newer Mapped[]/mapped_column() style) — this plugin is what makes mypy
+# understand that accessing e.g. `user.email` yields `str`, not `Column[str]`.
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+
+[[tool.mypy.overrides]]
+module = "app.*"
+disallow_untyped_defs = false

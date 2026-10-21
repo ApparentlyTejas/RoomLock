@@ -39,5 +39,9 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(subject=user.email)
+    # email is `nullable=False` in the schema (db/001_schema.sql); the
+    # sqlalchemy mypy plugin still widens legacy Column()-style attributes
+    # to Optional regardless, since this model doesn't use the newer
+    # Mapped[]/mapped_column() annotation style.
+    access_token = create_access_token(subject=user.email)  # type: ignore[arg-type]
     return Token(access_token=access_token)

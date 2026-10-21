@@ -16,7 +16,7 @@ if a URL ever leaks.
 """
 
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
@@ -34,7 +34,7 @@ def _ics_escape(text: str) -> str:
 
 
 def _ics_datetime(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return dt.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 @router.get("/feed-token", response_model=CalendarFeedTokenOut)
@@ -58,7 +58,7 @@ def calendar_feed(token: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Not found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = (
         db.query(Booking, Resource.name)
         .join(Resource, Resource.id == Booking.resource_id)

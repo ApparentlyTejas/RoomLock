@@ -24,11 +24,10 @@ import random
 import time
 import uuid
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import psycopg2
-
 from _bench_common import count_overlaps, percentile
 
 DEFAULT_HOST = "http://localhost:8001"
@@ -86,7 +85,7 @@ async def race_same_slot(host, token, resource_id, concurrency, run_index) -> di
     # Each concurrency level and each benchmark run gets its own slot, far
     # in the future, so repeat runs never collide with bookings a previous
     # run left behind.
-    start = datetime(2030, 1, 1, tzinfo=timezone.utc) + timedelta(
+    start = datetime(2030, 1, 1, tzinfo=UTC) + timedelta(
         hours=run_index * 20 + concurrency % 20
     )
     end = start + timedelta(hours=1)
@@ -142,7 +141,7 @@ def _build_mixed_requests(resource_ids, total, conflicts):
     re-target slots already claimed by the first batch, so they should
     all come back 409. Returns a shuffled list of (body, should_succeed).
     """
-    base = datetime(2031, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2031, 1, 1, tzinfo=UTC)
     distinct = total - conflicts
     slots = []
     i = 0
@@ -211,7 +210,7 @@ async def mixed_load(host, token, resource_ids, total, conflicts) -> dict:
         outcomes = await asyncio.gather(*[send(client, body) for body, _ in requests])
     wall = time.perf_counter() - t_start
 
-    for (body, should_succeed), (status, rid, latency) in zip(requests, outcomes):
+    for (_body, should_succeed), (status, rid, latency) in zip(requests, outcomes, strict=True):
         latencies.append(latency)
         if rid:
             replicas[rid] += 1
@@ -248,9 +247,9 @@ async def mixed_load(host, token, resource_ids, total, conflicts) -> dict:
 
 def render_markdown(same_slot_results, mixed_result) -> str:
     lines = [
-        f"# Scale-demo benchmark results",
+        "# Scale-demo benchmark results",
         "",
-        f"Generated {datetime.now(timezone.utc).isoformat(timespec='seconds')} by "
+        f"Generated {datetime.now(UTC).isoformat(timespec='seconds')} by "
         "`scripts/scale_benchmark.py` against `docker-compose.scale-demo.yml` "
         "(3 app replicas behind nginx, one shared Postgres).",
         "",

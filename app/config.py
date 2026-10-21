@@ -44,4 +44,7 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 
-settings = Settings()
+# pydantic-settings populates required fields from the environment/.env file
+# at runtime, not from constructor arguments — mypy can't see that, since it
+# only looks at Settings.__init__'s declared signature.
+settings = Settings()  # type: ignore[call-arg]

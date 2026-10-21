@@ -12,7 +12,10 @@ from app.routers import admin, assistant, auth, bookings, calendar_feed, google_
 
 app = FastAPI(title="RoomLock")
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# slowapi's own handler is typed against RateLimitExceeded specifically,
+# narrower than Starlette's Callable[[Request, Exception], ...] signature —
+# a stub mismatch between the two libraries, not a real type error.
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 app.include_router(auth.router)
 app.include_router(resources.router)

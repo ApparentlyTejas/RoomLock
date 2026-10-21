@@ -34,7 +34,6 @@ import tempfile
 import time
 
 import httpx
-
 from _bench_common import count_overlaps
 
 NAIVE_REF = "c94703f"  # naive check-then-insert + the Locust test confirming the race
