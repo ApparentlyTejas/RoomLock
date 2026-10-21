@@ -402,14 +402,15 @@ prove the actual `EXCLUDE` constraint and advisory-lock behavior work, which
 a non-Postgres test double couldn't exercise. That file races 20 concurrent
 identical requests at the same slot and asserts exactly one wins, zero
 overlaps land in the database — the automated version of the manual Locust
-load test below. 66 tests total, covering auth, resources, bookings,
-booking edits, recurring bookings, admin, and the booking assistant
-(with the Groq call mocked so tests don't depend on network/API cost).
+load test below. 158 tests total, covering auth, resources, bookings,
+booking edits, recurring bookings, admin, the booking assistant (with the
+Groq call mocked so tests don't depend on network/API cost), Google
+Calendar OAuth/sync (with Google's API mocked), and encryption at rest.
 
 ### Lint, type-check, coverage (CI)
 
 `.github/workflows/ci.yml` runs this on every push/PR: `ruff check .`,
-`mypy app`, and the pytest suite above with coverage against a real
+`mypy app`, and the pytest suite above with coverage (97%) against a real
 Postgres 16 service container — same image as `docker-compose.yml`, with
 `tests/conftest.py` creating/migrating/dropping `bookingapi_test` itself.
 Coverage (XML + HTML) is uploaded as a workflow artifact. Locally, with a
