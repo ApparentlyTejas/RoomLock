@@ -7,3 +7,6 @@ venv/
 .DS_Store
 CLAUDE.md
 .claude/
+benchmark_results/*.md
+benchmark_results/*.json
+!benchmark_results/.gitkeep

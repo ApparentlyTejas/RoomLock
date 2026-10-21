@@ -191,8 +191,14 @@ multi-process/multi-instance Prometheus setups solve this by scraping
 every instance separately and aggregating at query time, which is more
 infrastructure than a load-test footnote justifies here.
 
-Reproduce it yourself: `docker-compose.scale-demo.yml` has the full setup
-and commands in its header comment.
+Reproduce it yourself: `./scripts/run_scale_benchmark.sh` brings up
+`docker-compose.scale-demo.yml`, applies migrations, runs every table
+above via `scripts/scale_benchmark.py` (same-slot race at each concurrency
+level, the mixed-load run, replica distribution, and the overlap
+verification query — all driven by one script instead of hand-run and
+transcribed), writes the results to `benchmark_results/`, and tears the
+stack down again. `docker-compose.scale-demo.yml`'s header comment still
+has the manual step-by-step if you'd rather drive it yourself.
 
 ## Everything else, in the order it was built
 
@@ -400,8 +406,25 @@ booking edits, recurring bookings, admin, and the booking assistant
 
 ## Load test (reproducing the race condition)
 
+The top table's three rows (naive check-then-insert, Fix 1: row lock,
+Fix 2: exclusion constraint) come from three different points in this
+repo's history — `app/routers/bookings.py` only has the current, active
+fix in the working tree. `scripts/fix_comparison_benchmark.py` reproduces
+all three numbers in one run: it checks out each commit
+(`c94703f`/`7675679`/`HEAD`) into its own disposable `git worktree`,
+builds and runs it in isolation, races 30 concurrent requests at the same
+slot with Locust, and verifies overlapping bookings directly against
+Postgres — then tears the worktree down before moving to the next one.
+
 ```bash
-pip install locust
+pip install locust  # not a project dependency — only this manual benchmark needs it
+python3 scripts/fix_comparison_benchmark.py
+```
+
+To run a single version by hand instead (e.g. against whatever's
+currently checked out):
+
+```bash
 TEST_EMAIL=test@example.com TEST_PASSWORD=test-password-123 RESOURCE_ID=1 \
   locust -f loadtest/locustfile.py --headless -u 30 -r 30 -t 10s \
   --host http://localhost:8000
