@@ -1,6 +1,11 @@
 # RoomLock
 
 ![CI](https://github.com/ApparentlyTejas/RoomLock/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-exclusion%20constraint-336791?logo=postgresql&logoColor=white)
+![Prometheus](https://img.shields.io/badge/metrics-prometheus-E6522C?logo=prometheus&logoColor=white)
 
 Concurrency-safe resource booking API, themed for booking study rooms and
 seminar spaces around FAU Erlangen-Nürnberg: found a double-booking race
