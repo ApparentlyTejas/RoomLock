@@ -44,9 +44,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # Matches docker-compose.yml's db service (same postgres:16 image). The
-    # test suite talks Postgres directly over localhost, so no network alias
-    # or compose stack is needed — just the service container below.
+    # Matches docker-compose.yml's db and redis services (same images). The
+    # test suite talks to both directly over localhost, so no network alias
+    # or compose stack is needed — just the service containers below.
     services:
       postgres:
         image: postgres:16
@@ -62,6 +62,16 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       # tests/conftest.py derives the throwaway bookingapi_test database from
       # this by swapping the db name, then creates/migrates/drops it itself
@@ -70,6 +80,10 @@ jobs:
       DATABASE_URL: postgresql+psycopg2://app:app_dev_password@localhost:5432/bookingapi
       JWT_SECRET_KEY: ci-only-secret-not-used-anywhere-real
       TOKEN_ENCRYPTION_KEY: vaMESSBIZz7GIvBeB2ga2Qtz1bD5GXG4Hiq_oJPzCIk=
+      # Overrides config.py's default "redis:6379" compose hostname, which
+      # doesn't resolve on the bare runner — the service container above is
+      # reachable over localhost instead, same as postgres above.
+      REDIS_URL: redis://localhost:6379/0
 
     steps:
       - uses: actions/checkout@v4

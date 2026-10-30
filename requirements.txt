@@ -12,6 +12,7 @@ python-multipart==0.0.32
 requests==2.32.3
 slowapi==0.1.9
 cryptography==50.0.2
+redis==8.1.0
 pytest==8.3.4
 httpx==0.28.1
 prometheus-fastapi-instrumentator==7.0.0

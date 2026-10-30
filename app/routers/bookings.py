@@ -71,6 +71,7 @@ from sqlalchemy.orm import Session
 from app import crypto
 from app import google_calendar as gcal
 from app.auth import get_current_user
+from app.booking_lock import resource_lock
 from app.database import get_db
 from app.models import Booking, Resource, User
 from app.schemas import (
@@ -166,54 +167,65 @@ def create_booking(
             if existing:
                 return existing
 
-        overlap = (
-            db.query(Booking)
-            .filter(
-                Booking.resource_id == payload.resource_id,
-                Booking.start_time < payload.end_time,
-                Booking.end_time > payload.start_time,
-            )
-            .first()
-        )
-        if overlap:
-            raise HTTPException(status_code=409, detail="Resource already booked for this time")
-
-        booking = Booking(
-            resource_id=payload.resource_id,
-            user_id=current_user.id,
-            start_time=payload.start_time,
-            end_time=payload.end_time,
-            idempotency_key=payload.idempotency_key,
-        )
-        db.add(booking)
         try:
-            db.commit()
-        except IntegrityError:
-            db.rollback()
-            if attempt < _MAX_ATTEMPTS - 1:
-                continue
-            if payload.idempotency_key:
-                existing = (
+            with resource_lock(payload.resource_id):
+                overlap = (
                     db.query(Booking)
                     .filter(
-                        Booking.user_id == current_user.id,
-                        Booking.idempotency_key == payload.idempotency_key,
+                        Booking.resource_id == payload.resource_id,
+                        Booking.start_time < payload.end_time,
+                        Booking.end_time > payload.start_time,
                     )
                     .first()
                 )
-                if existing:
-                    return existing
-            raise HTTPException(
-                status_code=409, detail="Resource already booked for this time"
-            ) from None
-        except OperationalError:
-            db.rollback()
+                if overlap:
+                    raise HTTPException(
+                        status_code=409, detail="Resource already booked for this time"
+                    )
+
+                booking = Booking(
+                    resource_id=payload.resource_id,
+                    user_id=current_user.id,
+                    start_time=payload.start_time,
+                    end_time=payload.end_time,
+                    idempotency_key=payload.idempotency_key,
+                )
+                db.add(booking)
+                try:
+                    db.commit()
+                except IntegrityError:
+                    db.rollback()
+                    if attempt < _MAX_ATTEMPTS - 1:
+                        continue
+                    if payload.idempotency_key:
+                        existing = (
+                            db.query(Booking)
+                            .filter(
+                                Booking.user_id == current_user.id,
+                                Booking.idempotency_key == payload.idempotency_key,
+                            )
+                            .first()
+                        )
+                        if existing:
+                            return existing
+                    raise HTTPException(
+                        status_code=409, detail="Resource already booked for this time"
+                    ) from None
+                except OperationalError:
+                    db.rollback()
+                    if attempt < _MAX_ATTEMPTS - 1:
+                        continue
+                    raise HTTPException(
+                        status_code=503,
+                        detail="High contention booking this resource, please retry",
+                    ) from None
+                db.refresh(booking)
+        except TimeoutError:
             if attempt < _MAX_ATTEMPTS - 1:
                 continue
             raise HTTPException(
                 status_code=503, detail="High contention booking this resource, please retry"
             ) from None
-        db.refresh(booking)
 
         if current_user.google_refresh_token:
             # Best-effort: Google Calendar sync is a convenience layered on

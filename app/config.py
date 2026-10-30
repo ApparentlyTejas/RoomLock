@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     db_pool_size: int = 20
     db_max_overflow: int = 20
 
+    # Concurrency-control strategy for create_booking(): "exclusion_constraint"
+    # (default) relies solely on the Postgres EXCLUDE constraint; "redis" also
+    # serializes attempts on the same resource through a Redis lock. See
+    # app/booking_lock.py. redis_url is only read when the strategy is "redis".
+    booking_lock_strategy: str = "exclusion_constraint"
+    redis_url: str = "redis://redis:6379/0"
+
     class Config:
         env_file = ".env"
 
