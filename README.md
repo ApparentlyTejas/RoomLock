@@ -135,6 +135,47 @@ None of these were Postgres or the booking logic failing. All four were infrastr
 | Deployment | Docker, Render (app), Neon (serverless Postgres) |
 | Extras | Natural-language booking assistant (Groq, `openai/gpt-oss-120b`), Google Calendar sync, iCal feed, recurring bookings, admin analytics |
 
+## Architecture
+
+How the routers and shared modules fit together (the diagrams above cover specific flows - the race condition, the assistant, deployment - this is the whole app at rest):
+
+```mermaid
+flowchart TB
+  subgraph Routers["app/routers/"]
+    AU[auth.py]
+    BK[bookings.py]
+    RS[resources.py]
+    AD[admin.py]
+    AS[assistant.py]
+    GCR["google_calendar.py<br/>(OAuth endpoints)"]
+    CF[calendar_feed.py]
+  end
+
+  AU --> AM["app/auth.py<br/>JWT, bcrypt, get_current_user"]
+  BK --> AM
+  BK --> DB["database.py<br/>SQLAlchemy session, FOR UPDATE / EXCLUDE"]
+  RS --> DB
+  AD --> DB
+  CF --> DB
+  AS --> GQ["groq_client.py<br/>LLM extraction, local validation"]
+  AS -. draft, confirmed client-side,<br/>then POSTed as a normal request .-> BK
+  BK --> GCC["app/google_calendar.py<br/>client: create/update/delete event"]
+  GCR --> GCC
+  BK --> CR["crypto.py<br/>Fernet encrypt/decrypt refresh token"]
+  GCR --> CR
+  BK --> RL["rate_limit.py<br/>slowapi per-route limits"]
+  AU --> RL
+  AS --> RL
+
+  DB --> PG[("PostgreSQL<br/>EXCLUDE constraint")]
+  GCC --> GCAL[("Google Calendar API")]
+  GQ --> GROQ[("Groq API")]
+
+  Routers -.every request.-> OBS["observability.py<br/>Prometheus metrics, JSON access logs"]
+```
+
+`bookings.py` is the only router that touches the overlap-sensitive path (the `SELECT ... FOR UPDATE` / `EXCLUDE` logic lives in `database.py`, shared with nothing else); the assistant router never calls into it directly, it only produces a draft the client must confirm and POST through the normal `/bookings` endpoint, so an LLM-drafted booking goes through the exact same guarantee as a manually typed one.
+
 ## Running it locally
 
 ```bash
