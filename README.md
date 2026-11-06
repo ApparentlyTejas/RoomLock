@@ -153,7 +153,7 @@ flowchart TB
 
   AU --> AM["app/auth.py<br/>JWT, bcrypt, get_current_user"]
   BK --> AM
-  BK --> DB["database.py<br/>SQLAlchemy session, FOR UPDATE / EXCLUDE"]
+  BK --> DB["database.py<br/>SQLAlchemy engine/session setup"]
   RS --> DB
   AD --> DB
   CF --> DB
@@ -174,7 +174,7 @@ flowchart TB
   Routers -.every request.-> OBS["observability.py<br/>Prometheus metrics, JSON access logs"]
 ```
 
-`bookings.py` is the only router that touches the overlap-sensitive path (the `SELECT ... FOR UPDATE` / `EXCLUDE` logic lives in `database.py`, shared with nothing else); the assistant router never calls into it directly, it only produces a draft the client must confirm and POST through the normal `/bookings` endpoint, so an LLM-drafted booking goes through the exact same guarantee as a manually typed one.
+`bookings.py` is the only router that touches the overlap-sensitive path, and the `SELECT ... FOR UPDATE` / `EXCLUDE` logic lives directly inside it, not in a shared module (`database.py` only sets up the SQLAlchemy engine and session, nothing overlap-specific); the assistant router never calls into it directly, it only produces a draft the client must confirm and POST through the normal `/bookings` endpoint, so an LLM-drafted booking goes through the exact same guarantee as a manually typed one.
 
 ## Running it locally
 
