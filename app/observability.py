@@ -15,6 +15,7 @@ load generator's client-side timing includes its own scheduling jitter).
 import json
 import logging
 import time
+import uuid
 
 from fastapi import FastAPI, Request
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -33,22 +34,38 @@ access_logger.propagate = False
 
 class AccessLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Reuse a client-supplied X-Request-ID if present (lets a client
+        # correlate its own logs with this request across a proxy/load
+        # balancer); otherwise mint one. Stored on request.state so any
+        # route handler can also log it.
+        request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+        request.state.request_id = request_id
         start = time.perf_counter()
-        response = await call_next(request)
-        duration_ms = (time.perf_counter() - start) * 1000
-        response.headers["X-Replica-Id"] = settings.replica_id
-        access_logger.info(
-            json.dumps(
-                {
-                    "method": request.method,
-                    "path": request.url.path,
-                    "status": response.status_code,
-                    "duration_ms": round(duration_ms, 2),
-                    "replica_id": settings.replica_id,
-                }
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            response.headers["X-Replica-Id"] = settings.replica_id
+            response.headers["X-Request-ID"] = request_id
+            return response
+        finally:
+            # finally, not just the success path: an unhandled exception
+            # propagates straight through call_next with nothing below
+            # this middleware to log it, which previously meant a 500
+            # produced zero access-log output at all.
+            duration_ms = (time.perf_counter() - start) * 1000
+            access_logger.info(
+                json.dumps(
+                    {
+                        "request_id": request_id,
+                        "method": request.method,
+                        "path": request.url.path,
+                        "status": status_code,
+                        "duration_ms": round(duration_ms, 2),
+                        "replica_id": settings.replica_id,
+                    }
+                )
             )
-        )
-        return response
 
 
 def setup_observability(app: FastAPI) -> None:
