@@ -71,6 +71,8 @@ sequenceDiagram
 
 Same correctness both ways. Fix 2 wins on throughput because it stops punishing requests that were never actually in conflict. `tests/test_concurrency.py` automates the same check (20 concurrent identical requests, asserts exactly one wins) so it is proven on every CI run, not just a one-off manual test.
 
+The full reasoning behind this decision, the alternative considered, and when it would change is written up as [ADR 1](docs/adr/0001-postgres-exclusion-constraint-for-booking-overlaps.md). The idempotency-key handling built on top of it (and two real concurrency bugs that surfaced while load-testing it) is [ADR 2](docs/adr/0002-advisory-lock-for-idempotency-key-duplicates.md).
+
 ## Load test results
 
 Reproduced with `scripts/fix_comparison_benchmark.py`, which checks out each version of `app/routers/bookings.py` into its own disposable `git worktree`, runs it in isolation, races 30 concurrent Locust users at the same slot, and verifies overlaps directly against Postgres before tearing the worktree down and moving to the next version.
