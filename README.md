@@ -248,7 +248,7 @@ This brings up `docker-compose.scale-demo.yml` (3 app containers behind nginx, o
 docker compose exec api pytest -v
 ```
 
-Runs against a throwaway `bookingapi_test` database in the same Postgres container, recreated each run with all `db/*.sql` migrations applied. Not SQLite: the whole point of `test_concurrency.py` is to prove the actual `EXCLUDE` constraint and advisory-lock behavior, which a non-Postgres test double cannot exercise. 158 tests, covering auth, resources, bookings, booking edits, recurring bookings, admin, the booking assistant (Groq call mocked), Google Calendar OAuth/sync (mocked), and encryption at rest.
+Runs against a throwaway `bookingapi_test` database in the same Postgres container, recreated each run with all `db/*.sql` migrations applied. Not SQLite: the whole point of `test_concurrency.py` is to prove the actual `EXCLUDE` constraint and advisory-lock behavior, which a non-Postgres test double cannot exercise. 172 tests, covering auth, resources, bookings, booking edits, recurring bookings, admin, the booking assistant (Groq call mocked), Google Calendar OAuth/sync (mocked), and encryption at rest.
 
 ```bash
 pip install -r requirements-dev.txt
@@ -266,7 +266,7 @@ pytest --cov=app --cov-report=term-missing --cov-report=xml
 - Room metadata (capacity, amenities), CSV bulk import, admin usage analytics
 - Recurring weekly bookings with partial success if some weeks are already taken
 - Dark mode, installable PWA
-- Natural-language booking assistant ("book Meeting Room A tomorrow at 3pm") parsed by an LLM into a draft the user must confirm. Every field is re-validated against the real resource list and clock, and the draft still goes through the same `POST /bookings` path as any manually typed request, so the model never has a way to book anything directly
+- Natural-language booking assistant, chat-style with multi-turn memory. Besides drafting a booking from a sentence like "book Meeting Room A tomorrow at 3pm", it can check a room's availability, list your own upcoming bookings, and draft a cancellation, each re-validated against the real resource list, the real clock, and the real booking table before anything is shown as actionable; creating or cancelling still goes through the same `POST /bookings` / `DELETE /bookings/{id}` path as any manually typed request, so the model never has a way to act directly
 - Per-user iCal subscription feed, no OAuth required
 - Prometheus metrics and structured JSON access logs on every request
 
