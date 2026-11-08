@@ -20,7 +20,10 @@
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='5' fill='%2304316a'/%3E%3Cpath d='M8 6v3M16 6v3M4 10h16M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/ui/manifest.json" />
-<meta name="theme-color" content="#04316a" />
+<meta name="theme-color" content="#05070a" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <script>
   (function () {
     var saved = localStorage.getItem("booking_api_theme");
@@ -31,81 +34,66 @@
 </script>
 <style>
   :root {
-    --bg: #faf8f4;
-    --card: #ffffff;
-    --border: #e7e2d6;
-    --text: #17160f;
-    --muted: #6f6a5c;
-    --faint: #a29c8a;
-    --ink: #17160f;
-    --ink-2: #322f24;
-    --accent: #004a9f;
-    --accent-dark: #04316a;
-    --accent-soft: #ced9e7;
-    --ok: #0f7a4e;
-    --ok-bg: #eefaf1;
-    --error: #b3261e;
-    --error-bg: #fbeeec;
-    --surface-2: #f4f1ea;
-    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-    --shadow-card: 0 1px 2px rgba(23, 22, 15, 0.05), 0 16px 32px -14px rgba(23, 22, 15, 0.18);
-    --shadow-btn: 0 1px 2px rgba(23, 22, 15, 0.15), 0 6px 14px -4px rgba(23, 22, 15, 0.28);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0d1117;
-      --card: #161b22;
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #9198a1;
-      --faint: #6e7681;
-      --ink: #1c2128;
-      --ink-2: #2d333b;
-      --accent: #4a90d9;
-      --accent-dark: #2e6da4;
-      --accent-soft: rgba(74, 144, 217, 0.16);
-      --ok: #4ade80;
-      --ok-bg: rgba(163, 228, 188, 0.14);
-      --error: #f37268;
-      --error-bg: rgba(229, 162, 154, 0.14);
-      --surface-2: #21262d;
-      --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 32px -14px rgba(0, 0, 0, 0.6);
-      --shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 14px -4px rgba(0, 0, 0, 0.6);
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0d1117;
-    --card: #161b22;
-    --border: #30363d;
-    --text: #e6edf3;
-    --muted: #9198a1;
-    --faint: #6e7681;
-    --ink: #1c2128;
-    --ink-2: #2d333b;
-    --accent: #4a90d9;
-    --accent-dark: #2e6da4;
-    --accent-soft: rgba(74, 144, 217, 0.16);
+    /* Dark is the default theme here, matching the rest of the brand. */
+    --bg: #05070a;
+    --bg2: #0a0d13;
+    --bg3: #10141c;
+    --card: #0d1017;
+    --border: #1e2430;
+    --text: #f2f4f8;
+    --muted: #9ba3b2;
+    --faint: #7c8494;
+    --ink: #05070a;
+    --ink-2: #10141c;
+    --accent: #5b7cff;
+    --accent-dark: #4a68e0;
+    --accent-soft: rgba(91, 124, 255, 0.16);
+    --accent-orange: #ffa62b;
     --ok: #4ade80;
     --ok-bg: rgba(163, 228, 188, 0.14);
     --error: #f37268;
     --error-bg: rgba(229, 162, 154, 0.14);
-    --surface-2: #21262d;
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 32px -14px rgba(0, 0, 0, 0.6);
+    --surface-2: #141922;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    --display: "Space Grotesk", var(--sans);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 32px -14px rgba(0, 0, 0, 0.65);
     --shadow-btn: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 14px -4px rgba(0, 0, 0, 0.6);
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f8fb;
+    --bg2: #eef0f6;
+    --bg3: #e4e7f0;
+    --card: #ffffff;
+    --border: #dde1ea;
+    --text: #0d1017;
+    --muted: #4b5262;
+    --faint: #5f6675;
+    --ink: #0d1017;
+    --ink-2: #22262f;
+    --accent: #3658e0;
+    --accent-dark: #24409e;
+    --accent-soft: #e3e8ff;
+    --accent-orange: #a85a0d;
+    --ok: #0f7a4e;
+    --ok-bg: #eefaf1;
+    --error: #b3261e;
+    --error-bg: #fbeeec;
+    --surface-2: #eef0f6;
+    --shadow-card: 0 1px 2px rgba(23, 22, 15, 0.05), 0 16px 32px -14px rgba(23, 22, 15, 0.18);
+    --shadow-btn: 0 1px 2px rgba(23, 22, 15, 0.15), 0 6px 14px -4px rgba(23, 22, 15, 0.28);
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--sans);
     -webkit-font-smoothing: antialiased;
-    background:
-      radial-gradient(900px 420px at 50% -10%, rgba(4, 49, 106, 0.08), transparent 60%),
-      radial-gradient(circle, rgba(23,22,15,0.07) 1px, transparent 1px) 0 0 / 22px 22px,
-      var(--bg);
+    background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 45%, var(--bg3) 100%) fixed;
     color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
+    transition: background 0.3s ease, color 0.3s ease;
   }
   a { color: inherit; }
 
@@ -129,7 +117,7 @@
     flex-shrink: 0;
   }
   .brand-mark svg { width: 16px; height: 16px; }
-  .brand-name { font-size: 1.05rem; font-weight: 650; letter-spacing: -0.01em; color: #fff; }
+  .brand-name { font-family: var(--display); font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; color: #fff; }
   header nav { display: flex; align-items: center; gap: 1.25rem; }
   header nav a.textlink { font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.6); text-decoration: none; }
   header nav a.textlink:hover { color: #fff; }
@@ -148,13 +136,11 @@
     border-radius: 9px;
   }
   .theme-toggle-btn:hover { background: rgba(255,255,255,0.14); transform: none; box-shadow: none; }
-  .theme-toggle-btn .icon-moon { display: none; }
-  :root[data-theme="dark"] .theme-toggle-btn .icon-sun { display: none; }
-  :root[data-theme="dark"] .theme-toggle-btn .icon-moon { display: block; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .theme-toggle-btn .icon-sun { display: none; }
-    :root:not([data-theme="light"]) .theme-toggle-btn .icon-moon { display: block; }
-  }
+  /* Dark is the default theme, so the moon (current mode) shows by default;
+     the light override flips it to the sun. */
+  .theme-toggle-btn .icon-sun { display: none; }
+  :root[data-theme="light"] .theme-toggle-btn .icon-sun { display: block; }
+  :root[data-theme="light"] .theme-toggle-btn .icon-moon { display: none; }
 
   button, a.btn {
     cursor: pointer;
@@ -185,14 +171,26 @@
   main { max-width: 1040px; margin: 0 auto; padding: 0 1.5rem; }
 
   /* ---- Hero ---- */
-  .hero { padding: 5rem 0 4rem; text-align: center; }
+  .hero { position: relative; padding: 5rem 0 4rem; text-align: center; }
+  #hero-scene {
+    position: absolute;
+    inset: -2rem -1.5rem auto -1.5rem;
+    height: 480px;
+    z-index: 0;
+    pointer-events: none;
+    mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+  }
+  #hero-scene canvas { display: block; width: 100%; height: 100%; }
+  .hero > * { position: relative; z-index: 1; }
+  @media (max-width: 640px) { #hero-scene { height: 360px; } }
+  @media (prefers-reduced-motion: reduce) { #hero-scene { display: none; } }
   .eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     background: var(--accent-soft);
-    color: var(--accent-dark);
-    border: 1px solid #b9cce3;
+    color: var(--accent);
+    border: 1px solid var(--accent-soft);
     padding: 0.3rem 0.75rem;
     border-radius: 999px;
     font-size: 0.75rem;
@@ -201,14 +199,15 @@
     margin-bottom: 1.5rem;
   }
   h1.headline {
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--display);
+    font-weight: 600;
     font-size: clamp(2.2rem, 5vw, 3.4rem);
     line-height: 1.15;
     letter-spacing: -0.01em;
     margin: 0 auto 1.1rem;
     max-width: 18ch;
   }
-  .headline em { font-style: italic; color: var(--accent-dark); }
+  .headline em { font-style: normal; color: var(--accent); }
   .subhead {
     font-size: 1.05rem;
     line-height: 1.6;
@@ -222,8 +221,8 @@
   /* ---- Sections ---- */
   section.block { padding: 3.25rem 0; border-top: 1px solid var(--border); }
   .block-head { max-width: 56ch; margin: 0 auto 2.25rem; text-align: center; }
-  .block-eyebrow { font-size: 0.78rem; font-weight: 700; color: var(--accent-dark); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.5rem; }
-  .block-head h2 { font-size: 1.6rem; letter-spacing: -0.01em; margin: 0 0 0.6rem; }
+  .block-eyebrow { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .block-head h2 { font-family: var(--display); font-weight: 600; font-size: 1.6rem; letter-spacing: -0.01em; margin: 0 0 0.6rem; }
   .block-head p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; margin: 0; }
 
   /* ---- Race diagram ---- */
@@ -312,7 +311,7 @@
 
   /* ---- Final CTA ---- */
   .cta-block { text-align: center; padding: 3.5rem 0 4.5rem; }
-  .cta-block h2 { font-family: Georgia, serif; font-size: 1.9rem; margin: 0 0 0.75rem; }
+  .cta-block h2 { font-family: var(--display); font-weight: 600; font-size: 1.9rem; margin: 0 0 0.75rem; }
   .cta-block p { color: var(--muted); margin: 0 0 1.5rem; }
 
   footer {
@@ -323,7 +322,7 @@
     color: var(--faint);
   }
   footer a { color: var(--muted); font-weight: 600; text-decoration: none; }
-  footer a:hover { color: var(--accent-dark); }
+  footer a:hover { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -351,6 +350,7 @@
 <main>
 
   <section class="hero">
+    <div id="hero-scene" aria-hidden="true"></div>
     <span class="eyebrow">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 6v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V6z"/></svg>
       Concurrency-safe by design, not by luck
@@ -475,6 +475,126 @@
     localStorage.setItem("booking_api_theme", next);
     document.documentElement.setAttribute("data-theme", next);
   };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(function () {
+  var container = document.getElementById("hero-scene");
+  if (!container || typeof THREE === "undefined") return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, 0.6, 9);
+
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  var key = new THREE.PointLight(0x5b7cff, 2.2, 20);
+  key.position.set(-4, 3, 5);
+  scene.add(key);
+  var rim = new THREE.PointLight(0xffa62b, 1.6, 20);
+  rim.position.set(4, -2, 4);
+  scene.add(rim);
+
+  // The lock: a rounded body + a half-torus shackle, the thing the two
+  // racing "requests" below are trying to get through.
+  var lockGroup = new THREE.Group();
+  var bodyMat = new THREE.MeshStandardMaterial({ color: 0xcfd6e6, metalness: 0.75, roughness: 0.25 });
+  var body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.3, 0.9), bodyMat);
+  lockGroup.add(body);
+
+  var shackle = new THREE.Mesh(
+    new THREE.TorusGeometry(0.55, 0.14, 24, 48, Math.PI),
+    bodyMat
+  );
+  shackle.rotation.z = Math.PI;
+  shackle.position.set(0, 0.75, 0);
+  lockGroup.add(shackle);
+
+  var keyhole = new THREE.Mesh(
+    new THREE.CircleGeometry(0.1, 16),
+    new THREE.MeshBasicMaterial({ color: 0x05070a })
+  );
+  keyhole.position.set(0, -0.05, 0.46);
+  lockGroup.add(keyhole);
+  scene.add(lockGroup);
+
+  // Two "requests" racing the same slot: blue wins and passes through,
+  // orange loses and deflects off — the actual race condition, visualized.
+  var beamGeo = new THREE.CapsuleGeometry(0.08, 1.4, 4, 8);
+  function makeBeam(color) {
+    var mat = new THREE.MeshStandardMaterial({
+      color: color, emissive: color, emissiveIntensity: 1.6,
+      roughness: 0.3, transparent: true,
+    });
+    var mesh = new THREE.Mesh(beamGeo, mat);
+    mesh.rotation.z = Math.PI / 2;
+    scene.add(mesh);
+    return mesh;
+  }
+  var beamWinner = makeBeam(0x5b7cff);
+  var beamLoser = makeBeam(0xffa62b);
+
+  var LOOP = 3.4;
+  function placeBeam(mesh, loopT, startX, startY, deflects) {
+    var travel = Math.min(loopT / 0.6, 1);
+    var x = startX + (0 - startX) * travel;
+    var y = startY;
+    if (travel >= 1) {
+      var post = (loopT - 0.6) / 0.4;
+      if (deflects) {
+        x = post * 2.2;
+        y = startY + post * 1.8;
+      } else {
+        x = post * 3.2;
+      }
+    }
+    var opacity = loopT < 0.08 ? loopT / 0.08 : loopT > 0.85 ? Math.max(0, (1 - loopT) / 0.15) : 1;
+    mesh.position.set(x, y, 0);
+    mesh.material.opacity = opacity;
+  }
+
+  var clock = new THREE.Clock();
+  var pointer = { x: 0, y: 0 };
+  window.addEventListener("pointermove", function (e) {
+    pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    var t = clock.getElapsedTime();
+    var loopT = (t % LOOP) / LOOP;
+
+    placeBeam(beamWinner, loopT, -4.5, 0.18, false);
+    placeBeam(beamLoser, loopT, -4.2, -0.18, true);
+
+    lockGroup.rotation.y = Math.sin(t * 0.3) * 0.15 + pointer.x * 0.2;
+    lockGroup.rotation.x = pointer.y * 0.1;
+    var passPulse = Math.max(0, 1 - Math.abs(loopT - 0.6) * 18);
+    lockGroup.scale.setScalar(1 + passPulse * 0.06);
+
+    camera.position.x += (pointer.x * 0.6 - camera.position.x) * 0.04;
+    camera.lookAt(0, 0, 0);
+
+    renderer.render(scene, camera);
+  }
+
+  function resize() {
+    var w = container.clientWidth, h = container.clientHeight;
+    if (!w || !h) return;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+  animate();
+})();
 </script>
 
 </body>
