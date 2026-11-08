@@ -50,6 +50,7 @@ def test_feed_contains_upcoming_booking(client, user_headers, resource_id):
     assert "DTSTART:20270105T100000Z" in body
     assert "DTEND:20270105T110000Z" in body
     assert "Test Room booking" in body
+    assert "LOCATION:Test Room" in body
 
 
 def test_feed_excludes_past_bookings(client, user_headers, resource_id):

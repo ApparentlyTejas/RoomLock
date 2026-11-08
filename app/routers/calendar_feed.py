@@ -86,6 +86,7 @@ def calendar_feed(token: str, db: Session = Depends(get_db)):
             f"DTSTART:{_ics_datetime(booking.start_time)}",
             f"DTEND:{_ics_datetime(booking.end_time)}",
             f"SUMMARY:{_ics_escape(resource_name + ' booking')}",
+            f"LOCATION:{_ics_escape(resource_name)}",
             f"DESCRIPTION:{_ics_escape('Booked via RoomLock')}",
             "END:VEVENT",
         ]
