@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -113,17 +114,40 @@ class AdminUserRoleUpdate(BaseModel):
     is_admin: bool
 
 
-class AssistantParseRequest(BaseModel):
+class AssistantChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1000)
+
+
+class AssistantChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=500)
+    # Prior turns the frontend is keeping in-session, replayed as real chat
+    # history so a clarifying question can be answered in a follow-up
+    # message instead of forcing the user to restate the whole request.
+    history: list[AssistantChatTurn] = Field(default_factory=list, max_length=12)
 
 
-class AssistantParseResponse(BaseModel):
-    needs_clarification: bool
-    clarification: str | None = None
+class AssistantBookingSummary(BaseModel):
+    id: int
+    resource_id: int
+    resource_name: str
+    start_time: datetime
+    end_time: datetime
+
+
+class AssistantChatResponse(BaseModel):
+    intent: Literal["book", "availability", "list_bookings", "cancel", "chat"]
+    reply: str
+    needs_clarification: bool = False
+    # intent == "book"
     resource_id: int | None = None
     resource_name: str | None = None
     start_time: datetime | None = None
     end_time: datetime | None = None
+    # intent == "availability" | "list_bookings": real bookings the frontend can render as a list
+    bookings: list[AssistantBookingSummary] | None = None
+    # intent == "cancel": the one booking identified for the user to confirm cancelling
+    cancel_booking_id: int | None = None
 
 
 class CalendarFeedTokenOut(BaseModel):

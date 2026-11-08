@@ -1,17 +1,18 @@
 """
 Groq client for the natural-language booking assistant.
 
-This module has exactly one job: turn a free-text sentence like "book
-Meeting Room A tomorrow at 3pm" into a structured {resource_id, start_time,
-end_time} draft. It never writes to the database and never talks to
-/bookings directly — the caller (app/routers/assistant.py) validates the
-model's output against the real resource list and re-checks every
-constraint (valid resource, end after start, not in the past) before
-handing it back to the frontend as a draft the user must still confirm.
-The actual booking is still created through the normal, concurrency-safe
-POST /bookings endpoint like any other request — the model is a fuzzy
-front end bolted onto an unchanged, strict backend, not a shortcut around
-it.
+This module has exactly one job: turn a free-text message, plus whatever
+chat history came before it, into structured JSON describing what the
+user wants (book a room, check availability, list or cancel a booking, or
+just chat) and any fields needed to act on it. It never writes to the
+database and never talks to /bookings directly — the caller
+(app/routers/assistant.py) re-validates every field against real data
+(the actual resource list, the actual clock, the user's actual bookings)
+before anything is shown to the user as actionable. Creating a booking
+still goes through the normal, concurrency-safe POST /bookings endpoint,
+and cancelling still goes through DELETE /bookings/{id} — the model is a
+fuzzy front end bolted onto an unchanged, strict backend, not a shortcut
+around it.
 
 GPT OSS 120B via Groq: free tier, OpenAI-compatible REST API, native JSON
 mode (response_format={"type": "json_object"}) is enough for this — no
@@ -37,27 +38,48 @@ def is_configured() -> bool:
     return bool(settings.groq_api_key)
 
 
-def _system_prompt(resources: list[dict], now_local: datetime) -> str:
+def _system_prompt(resources: list[dict], bookings: list[dict], now_local: datetime) -> str:
     resource_lines = "\n".join(f"- id={r['id']}: {r['name']}" for r in resources)
-    return f"""You turn a short booking request into structured JSON. You do not book anything yourself — you only extract fields for a human to confirm.
+    if bookings:
+        booking_lines = "\n".join(
+            f"- booking_id={b['id']}: {b['resource_name']} on "
+            f"{b['start_time'].strftime('%A %Y-%m-%d %H:%M')}-{b['end_time'].strftime('%H:%M')}"
+            for b in bookings
+        )
+    else:
+        booking_lines = "(the user has no upcoming bookings)"
+    return f"""You classify a short message from a room-booking app into one intent and extract its fields. You do not book, cancel, or look anything up yourself — you only propose; a human (or the real backend) confirms.
 
-Current date/time: {now_local.strftime("%A, %Y-%m-%d %H:%M")} local time (interpret all relative times like "tomorrow" or "3pm" against this — this is already the user's local time, do not convert timezones yourself).
+Current date/time: {now_local.strftime("%A, %Y-%m-%d %H:%M")} local time (interpret relative times like "tomorrow" or "3pm" against this — already local, do not convert timezones yourself).
 
-Available resources (you MUST use one of these ids, never invent one):
+Available resources (you MUST use one of these ids for "book" or "availability", never invent one):
 {resource_lines}
+
+The user's own upcoming bookings (use these ids for "cancel", never invent one):
+{booking_lines}
+
+Pick exactly one intent:
+- "book": wants to create a new booking.
+- "availability": wants to know if a room is free, or what's already booked on it.
+- "list_bookings": wants to see their own upcoming bookings.
+- "cancel": wants to cancel one of their own bookings listed above.
+- "chat": anything else (greeting, question about the app, unclear) — put a short, direct, helpful answer in "reply".
 
 Bookings default to a 1-hour duration unless the user gives an explicit end time or duration.
 
 Respond with ONLY a JSON object, no other text, matching exactly this shape:
 {{
-  "resource_id": <int or null>,
+  "intent": "book" | "availability" | "list_bookings" | "cancel" | "chat",
+  "resource_id": <int or null, for "book"/"availability">,
   "date": "<YYYY-MM-DD, local calendar date, or null>",
   "start_time": "<HH:MM in 24-hour local time, e.g. 15:00, or null>",
   "end_time": "<HH:MM in 24-hour local time, or null>",
-  "clarification": "<a short question to ask the user if resource/time is missing or ambiguous, else null>"
+  "booking_id": <int or null, for "cancel" — must be one of the booking_id values above>,
+  "reply": "<short natural-language reply, used for \\"chat\\" intent, else null>",
+  "clarification": "<a short question to ask if something required is missing or ambiguous, else null>"
 }}
 
-Give date/start_time/end_time as plain local wall-clock values exactly as a person would say them — do NOT convert to UTC or apply any timezone offset, that's handled separately. If the request doesn't clearly name one of the resources above, or gives no usable time, set clarification instead of guessing."""
+Give date/start_time/end_time as plain local wall-clock values exactly as a person would say them — do NOT convert to UTC or apply any timezone offset, that's handled separately. If a "book" request doesn't clearly name one of the resources above, or gives no usable time, or a "cancel" request doesn't clearly match one of the bookings above, set clarification instead of guessing."""
 
 
 def combine_local_datetime(date_str: str, time_str: str) -> datetime:
@@ -78,11 +100,20 @@ def combine_local_datetime(date_str: str, time_str: str) -> datetime:
     return local.astimezone(UTC)
 
 
-def parse_booking_request(message: str, resources: list[dict], now_utc: datetime) -> dict:
+def parse_assistant_message(
+    message: str,
+    resources: list[dict],
+    bookings: list[dict],
+    history: list[dict],
+    now_utc: datetime,
+) -> dict:
     """
-    Returns the model's raw parsed dict (resource_id, date, start_time,
-    end_time, clarification) exactly as it came back — the caller is
-    responsible for validating every field before trusting it.
+    Returns the model's raw parsed dict (intent, resource_id, date,
+    start_time, end_time, booking_id, reply, clarification) exactly as it
+    came back — the caller is responsible for validating every field
+    before trusting it. `history` is prior {role, content} turns, replayed
+    as real chat messages so a follow-up answering a clarifying question
+    has the original request as context.
     """
     from zoneinfo import ZoneInfo
 
@@ -100,7 +131,8 @@ def parse_booking_request(message: str, resources: list[dict], now_utc: datetime
             "temperature": 0,
             "max_tokens": 300,
             "messages": [
-                {"role": "system", "content": _system_prompt(resources, now_local)},
+                {"role": "system", "content": _system_prompt(resources, bookings, now_local)},
+                *history,
                 {"role": "user", "content": message},
             ],
         },

@@ -1,9 +1,9 @@
 """
 Direct unit tests for app/groq_client.py — the parsing module itself, not
-the /assistant/parse endpoint (that's covered via mocked
-groq_client.parse_booking_request in test_assistant.py). These tests mock
-requests.post (never hit the real Groq API) and focus on the two real bugs
-called out in the module's own docstring and comments:
+the /assistant/chat endpoint (that's covered via mocked
+groq_client.parse_assistant_message in test_assistant.py). These tests
+mock requests.post (never hit the real Groq API) and focus on the real
+bugs called out in the module's own docstrings and comments:
 
 1. combine_local_datetime does DST-aware UTC conversion in code (via
    zoneinfo), specifically so the LLM never has to do timezone arithmetic
@@ -16,6 +16,9 @@ called out in the module's own docstring and comments:
    default, it just has to return the field as None faithfully so the
    caller's fallback kicks in. Covered here by asserting the raw parsed
    dict passes end_time through unchanged.
+3. Chat history is replayed as real messages (not folded into the system
+   prompt) so a follow-up answering a clarifying question has the
+   original request as context.
 """
 
 from datetime import UTC, datetime
@@ -78,26 +81,31 @@ def test_combine_local_datetime_matches_zoneinfo_directly():
     assert groq_client.combine_local_datetime("2027-11-01", "09:30") == expected
 
 
-def test_parse_booking_request_well_formed_response(monkeypatch):
+def test_parse_assistant_message_well_formed_response(monkeypatch):
     captured = {}
 
     def fake_post(url, headers, json, timeout):
         captured["url"] = url
         captured["json"] = json
         return _chat_completion(
-            '{"resource_id": 1, "date": "2027-07-15", "start_time": "15:00", '
-            '"end_time": "16:00", "clarification": null}'
+            '{"intent": "book", "resource_id": 1, "date": "2027-07-15", "start_time": "15:00", '
+            '"end_time": "16:00", "booking_id": null, "reply": null, "clarification": null}'
         )
 
     monkeypatch.setattr(groq_client.requests, "post", fake_post)
     resources = [{"id": 1, "name": "Meeting Room A"}]
-    result = groq_client.parse_booking_request("book room A tomorrow at 3pm", resources, datetime.now(UTC))
+    result = groq_client.parse_assistant_message(
+        "book room A tomorrow at 3pm", resources, [], [], datetime.now(UTC)
+    )
 
     assert result == {
+        "intent": "book",
         "resource_id": 1,
         "date": "2027-07-15",
         "start_time": "15:00",
         "end_time": "16:00",
+        "booking_id": None,
+        "reply": None,
         "clarification": None,
     }
     assert captured["url"] == groq_client.GROQ_CHAT_URL
@@ -106,8 +114,8 @@ def test_parse_booking_request_well_formed_response(monkeypatch):
     assert "Meeting Room A" in captured["json"]["messages"][0]["content"]
 
 
-def test_parse_booking_request_passes_through_null_end_time(monkeypatch):
-    # Real bug #2: the model is told to default to a 1-hour booking, but
+def test_parse_assistant_message_passes_through_null_end_time(monkeypatch):
+    # Real bug: the model is told to default to a 1-hour booking, but
     # observed (per the module docstring) to sometimes leave end_time null
     # anyway. groq_client must not paper over that itself — it has to
     # return exactly what the model said, null and all, so the *caller*
@@ -116,39 +124,85 @@ def test_parse_booking_request_passes_through_null_end_time(monkeypatch):
         groq_client.requests,
         "post",
         lambda *a, **k: _chat_completion(
-            '{"resource_id": 1, "date": "2027-07-15", "start_time": "15:00", '
-            '"end_time": null, "clarification": null}'
+            '{"intent": "book", "resource_id": 1, "date": "2027-07-15", "start_time": "15:00", '
+            '"end_time": null, "booking_id": null, "reply": null, "clarification": null}'
         ),
     )
-    result = groq_client.parse_booking_request("book room A at 3pm", [{"id": 1, "name": "Room A"}], datetime.now(UTC))
+    result = groq_client.parse_assistant_message(
+        "book room A at 3pm", [{"id": 1, "name": "Room A"}], [], [], datetime.now(UTC)
+    )
     assert result["end_time"] is None
     assert result["start_time"] == "15:00"
 
 
-def test_parse_booking_request_raises_on_http_error(monkeypatch):
+def test_parse_assistant_message_raises_on_http_error(monkeypatch):
     monkeypatch.setattr(groq_client.requests, "post", lambda *a, **k: _FakeResponse({}, status_code=500))
     try:
-        groq_client.parse_booking_request("book something", [], datetime.now(UTC))
+        groq_client.parse_assistant_message("book something", [], [], [], datetime.now(UTC))
         raised = False
     except RuntimeError:
         raised = True
     assert raised  # caller (assistant.py) is responsible for catching this as a 502
 
 
-def test_parse_booking_request_raises_on_malformed_json(monkeypatch):
+def test_parse_assistant_message_raises_on_malformed_json(monkeypatch):
     monkeypatch.setattr(groq_client.requests, "post", lambda *a, **k: _chat_completion("not json"))
     try:
-        groq_client.parse_booking_request("book something", [], datetime.now(UTC))
+        groq_client.parse_assistant_message("book something", [], [], [], datetime.now(UTC))
         raised = False
     except Exception:
         raised = True
     assert raised
 
 
+def test_parse_assistant_message_forwards_history_as_chat_messages(monkeypatch):
+    captured = {}
+
+    def fake_post(url, headers, json, timeout):
+        captured["json"] = json
+        return _chat_completion(
+            '{"intent": "book", "resource_id": 1, "date": "2027-07-15", "start_time": "15:00", '
+            '"end_time": "16:00", "booking_id": null, "reply": null, "clarification": null}'
+        )
+
+    monkeypatch.setattr(groq_client.requests, "post", fake_post)
+    history = [
+        {"role": "user", "content": "book a room tomorrow"},
+        {"role": "assistant", "content": "Which room?"},
+    ]
+    groq_client.parse_assistant_message(
+        "room A", [{"id": 1, "name": "Room A"}], [], history, datetime.now(UTC)
+    )
+    messages = captured["json"]["messages"]
+    assert messages[0]["role"] == "system"
+    assert messages[1:3] == history
+    assert messages[3] == {"role": "user", "content": "room A"}
+
+
 def test_system_prompt_lists_every_resource_id():
     now_local = datetime(2027, 7, 15, 10, 0)
     resources = [{"id": 1, "name": "Room A"}, {"id": 2, "name": "Room B"}]
-    prompt = groq_client._system_prompt(resources, now_local)
+    prompt = groq_client._system_prompt(resources, [], now_local)
     assert "id=1: Room A" in prompt
     assert "id=2: Room B" in prompt
     assert "1-hour duration" in prompt
+
+
+def test_system_prompt_lists_every_booking_id():
+    now_local = datetime(2027, 7, 15, 10, 0)
+    bookings = [
+        {
+            "id": 7,
+            "resource_name": "Room A",
+            "start_time": datetime(2027, 7, 16, 15, 0),
+            "end_time": datetime(2027, 7, 16, 16, 0),
+        }
+    ]
+    prompt = groq_client._system_prompt([], bookings, now_local)
+    assert "booking_id=7: Room A" in prompt
+
+
+def test_system_prompt_handles_no_bookings():
+    now_local = datetime(2027, 7, 15, 10, 0)
+    prompt = groq_client._system_prompt([], [], now_local)
+    assert "no upcoming bookings" in prompt
