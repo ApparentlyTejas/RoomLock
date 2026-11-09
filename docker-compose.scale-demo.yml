@@ -17,6 +17,11 @@
 # instance — if the no-double-booking guarantee held only "by accident"
 # because everything ran in one process, it would break the moment a
 # second replica raced the first. It doesn't.
+#
+# Rate limiting needs the same discipline: REDIS_URL below is what makes
+# "10/minute" actually mean 10/minute across all three replicas. Without
+# it, each replica's slowapi counts in its own process memory, so the real
+# effective limit here would silently be 3x the documented one.
 # Connection budget math (this is the kind of thing that silently breaks
 # a "horizontally scaled" demo if left at defaults): 3 replicas x 3 worker
 # processes each = 9 Python processes, each with its own connection pool
@@ -31,11 +36,14 @@ x-api-service: &api_service
     - .env
   environment:
     - DATABASE_URL=postgresql+psycopg2://app:app_dev_password@db:5432/bookingapi
+    - REDIS_URL=redis://redis:6379
     - WEB_CONCURRENCY=3
     - DB_POOL_SIZE=5
     - DB_MAX_OVERFLOW=5
   depends_on:
     db:
+      condition: service_healthy
+    redis:
       condition: service_healthy
 
 services:
@@ -58,10 +66,20 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api1:
     <<: *api_service
     environment:
       - DATABASE_URL=postgresql+psycopg2://app:app_dev_password@db:5432/bookingapi
+      - REDIS_URL=redis://redis:6379
       - WEB_CONCURRENCY=3
       - DB_POOL_SIZE=5
       - DB_MAX_OVERFLOW=5
@@ -71,6 +89,7 @@ services:
     <<: *api_service
     environment:
       - DATABASE_URL=postgresql+psycopg2://app:app_dev_password@db:5432/bookingapi
+      - REDIS_URL=redis://redis:6379
       - WEB_CONCURRENCY=3
       - DB_POOL_SIZE=5
       - DB_MAX_OVERFLOW=5
@@ -80,6 +99,7 @@ services:
     <<: *api_service
     environment:
       - DATABASE_URL=postgresql+psycopg2://app:app_dev_password@db:5432/bookingapi
+      - REDIS_URL=redis://redis:6379
       - WEB_CONCURRENCY=3
       - DB_POOL_SIZE=5
       - DB_MAX_OVERFLOW=5

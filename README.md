@@ -328,7 +328,7 @@ Render's free web service sleeps after 15 minutes idle, so the first request aft
 
 ## Security notes
 
-- Rate limited: `/auth/login` (10/min) and `/auth/register` (5/min) per IP via `slowapi`. The booking assistant is separately rate-limited (10/min) since each call costs a real API request.
+- Rate limited: `/auth/login` (10/min) and `/auth/register` (5/min) per IP via `slowapi`. The booking assistant is separately rate-limited (10/min) since each call costs a real API request. Each limit's counters live in-process by default, correct for the single-replica deployment this normally runs as; set `REDIS_URL` (already wired up in `docker-compose.scale-demo.yml`) to share counters across replicas instead — otherwise N replicas means the real effective limit is N times the number above.
 - Passwords are bcrypt-hashed, never stored or logged in plaintext, minimum 8 characters enforced at the schema level.
 - Google refresh tokens are encrypted at rest (Fernet), so a database leak alone does not hand out live Calendar access.
 - LLM output is never trusted directly. Every field the assistant returns is re-validated against the real database and clock, and the booking write itself is unreachable from the model, only from a user-confirmed draft going through the normal endpoint.
