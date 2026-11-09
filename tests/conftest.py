@@ -13,7 +13,6 @@ Run with: docker compose exec api pytest
 (needs to run inside the container/network so the "db" hostname resolves).
 """
 
-import glob
 import os
 import re
 
@@ -26,10 +25,13 @@ os.environ["DATABASE_URL"] = _TEST_DB_URL
 
 import psycopg2  # noqa: E402
 import pytest  # noqa: E402
+from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
-MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "db")
+from alembic import command  # noqa: E402
+
+ALEMBIC_INI = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
 
 
 def _plain_url(url: str) -> str:
@@ -47,14 +49,9 @@ def _test_database():
     cur.close()
     conn.close()
 
-    test_conn = psycopg2.connect(_plain_url(_TEST_DB_URL))
-    test_conn.autocommit = True
-    test_cur = test_conn.cursor()
-    for path in sorted(glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql"))):
-        with open(path) as f:
-            test_cur.execute(f.read())
-    test_cur.close()
-    test_conn.close()
+    # env.py reads the URL from app.config.settings, which already picked up
+    # _TEST_DB_URL via the os.environ override above — nothing to pass here.
+    command.upgrade(Config(ALEMBIC_INI), "head")
     yield
 
 

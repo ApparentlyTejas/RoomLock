@@ -65,8 +65,8 @@ jobs:
     env:
       # tests/conftest.py derives the throwaway bookingapi_test database from
       # this by swapping the db name, then creates/migrates/drops it itself
-      # (session-scoped autouse fixture, applying db/*.sql) — the workflow
-      # doesn't need to run migrations separately.
+      # (session-scoped autouse fixture, running `alembic upgrade head`) —
+      # the workflow doesn't need to run migrations separately.
       DATABASE_URL: postgresql+psycopg2://app:app_dev_password@localhost:5432/bookingapi
       JWT_SECRET_KEY: ci-only-secret-not-used-anywhere-real
       TOKEN_ENCRYPTION_KEY: vaMESSBIZz7GIvBeB2ga2Qtz1bD5GXG4Hiq_oJPzCIk=
