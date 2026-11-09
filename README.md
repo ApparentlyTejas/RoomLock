@@ -13,7 +13,7 @@ The app itself books study rooms and seminar spaces (themed, cosmetically, aroun
 
 **Live demo:** https://bookingapi-i4cg.onrender.com (free tier, first request after idle can take 30-50s to wake up)
 
-![Demo: asking the natural-language assistant to book a room, confirming, then toggling dark mode](docs/demo.gif)
+![Demo: the landing page, then asking the chat assistant to check availability, booking a room, confirming, listing bookings, and toggling light/dark mode](docs/demo.gif)
 
 ## The race condition
 
