@@ -8,14 +8,13 @@ This started as a solo project, but issues and pull requests are welcome.
 docker compose up --build
 ```
 
-Apply the schema (run manually so each migration is explicit — nothing auto-runs on startup):
+Apply the schema (run manually so nothing auto-runs on startup):
 
 ```bash
-for f in db/*.sql; do
-  echo "Applying $f..."
-  docker compose exec db psql -U app -d bookingapi -f "/db/$(basename "$f")"
-done
+docker compose exec api alembic upgrade head
 ```
+
+Each `db/00X_*.sql` file is a migration's actual DDL; the matching file under `alembic/versions/` just orders, tracks, and reverses it (`alembic downgrade -1` to undo one step, `alembic current` to check what's applied).
 
 Generate real secrets (the checked-in `.env` placeholders are dev-only):
 
@@ -30,7 +29,7 @@ python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).dec
 docker compose exec api pytest -v
 ```
 
-Tests run against a real, throwaway Postgres instance in the same container, recreated on each run with every `db/*.sql` migration applied — not SQLite. The whole point of `tests/test_concurrency.py` is to prove the actual `EXCLUDE` constraint and advisory-lock behavior from [ADR 1](docs/adr/0001-postgres-exclusion-constraint-for-booking-overlaps.md) and [ADR 2](docs/adr/0002-advisory-lock-for-idempotency-key-duplicates.md), which a non-Postgres test double can't exercise.
+Tests run against a real, throwaway Postgres instance in the same container, recreated on each run with `alembic upgrade head` applying every migration — not SQLite. The whole point of `tests/test_concurrency.py` is to prove the actual `EXCLUDE` constraint and advisory-lock behavior from [ADR 1](docs/adr/0001-postgres-exclusion-constraint-for-booking-overlaps.md) and [ADR 2](docs/adr/0002-advisory-lock-for-idempotency-key-duplicates.md), which a non-Postgres test double can't exercise.
 
 Before opening a PR:
 

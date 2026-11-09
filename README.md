@@ -184,13 +184,10 @@ flowchart TB
 docker compose up --build
 ```
 
-Apply the schema (not auto-run, run manually so each migration is explicit):
+Apply the schema (not auto-run, run manually):
 
 ```bash
-for f in db/*.sql; do
-  echo "Applying $f..."
-  docker compose exec db psql -U app -d bookingapi -f "/db/$(basename "$f")"
-done
+docker compose exec api alembic upgrade head
 ```
 
 Generate real secrets before first run (the checked-in `.env` placeholders are dev-only):
@@ -248,7 +245,7 @@ This brings up `docker-compose.scale-demo.yml` (3 app containers behind nginx, o
 docker compose exec api pytest -v
 ```
 
-Runs against a throwaway `bookingapi_test` database in the same Postgres container, recreated each run with all `db/*.sql` migrations applied. Not SQLite: the whole point of `test_concurrency.py` is to prove the actual `EXCLUDE` constraint and advisory-lock behavior, which a non-Postgres test double cannot exercise. 172 tests, covering auth, resources, bookings, booking edits, recurring bookings, admin, the booking assistant (Groq call mocked), Google Calendar OAuth/sync (mocked), and encryption at rest.
+Runs against a throwaway `bookingapi_test` database in the same Postgres container, recreated each run with `alembic upgrade head` applying every migration. Not SQLite: the whole point of `test_concurrency.py` is to prove the actual `EXCLUDE` constraint and advisory-lock behavior, which a non-Postgres test double cannot exercise. 172 tests, covering auth, resources, bookings, booking edits, recurring bookings, admin, the booking assistant (Groq call mocked), Google Calendar OAuth/sync (mocked), and encryption at rest.
 
 ```bash
 pip install -r requirements-dev.txt

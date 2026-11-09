@@ -4,10 +4,7 @@
 # `docker compose up` if needed, though stopping that first is simpler):
 #
 #   docker compose -f docker-compose.scale-demo.yml up --build -d
-#   for f in db/*.sql; do
-#     docker compose -f docker-compose.scale-demo.yml exec db \
-#       psql -U app -d bookingapi -f "/db/$(basename "$f")"
-#   done
+#   docker compose -f docker-compose.scale-demo.yml exec api1 alembic upgrade head
 #
 # Then hit http://localhost:8001 instead of :8000. Each response carries
 # an X-Replica-Id header (api1/api2/api3) so you can see requests actually

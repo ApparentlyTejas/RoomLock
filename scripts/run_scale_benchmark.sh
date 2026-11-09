@@ -39,10 +39,7 @@ for _ in $(seq 1 30); do
 done
 
 echo "Applying migrations..."
-for f in db/*.sql; do
-  echo "  $f"
-  $COMPOSE exec -T db psql -U app -d bookingapi -f "/db/$(basename "$f")" >/dev/null
-done
+$COMPOSE exec -T api1 alembic upgrade head
 
 echo "Waiting for the API to answer through nginx..."
 for _ in $(seq 1 30); do
