@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     db_pool_size: int = 20
     db_max_overflow: int = 20
 
+    # Optional: backs the rate limiter with Redis instead of each process's
+    # own in-memory counters. Left blank, every worker process enforces its
+    # own independent limit — correct for a single process, but wrong the
+    # moment there's more than one (each replica/worker gets its own
+    # "5/minute", so the real effective limit is N times the documented
+    # one). Set this in docker-compose.scale-demo.yml, where that's exactly
+    # what happens otherwise.
+    redis_url: str = ""
+
     class Config:
         env_file = ".env"
 
