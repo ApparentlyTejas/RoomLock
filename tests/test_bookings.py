@@ -145,12 +145,13 @@ def test_cannot_edit_a_past_booking(client, user_headers, resource_id):
     assert resp.status_code == 400
 
 
-def _book_recurring(client, headers, resource_id, occurrences, start="2027-01-01T10:00:00Z", end="2027-01-01T11:00:00Z"):
-    return client.post(
-        "/bookings/recurring",
-        json={"resource_id": resource_id, "start_time": start, "end_time": end, "occurrences": occurrences},
-        headers=headers,
-    )
+def _book_recurring(
+    client, headers, resource_id, occurrences, start="2027-01-01T10:00:00Z", end="2027-01-01T11:00:00Z", key=None
+):
+    payload = {"resource_id": resource_id, "start_time": start, "end_time": end, "occurrences": occurrences}
+    if key:
+        payload["idempotency_key"] = key
+    return client.post("/bookings/recurring", json=payload, headers=headers)
 
 
 def test_create_recurring_booking_success(client, user_headers, resource_id):
@@ -193,6 +194,49 @@ def test_recurring_booking_unknown_resource_404s(client, user_headers):
 def test_recurring_booking_occurrences_out_of_range_rejected(client, user_headers, resource_id):
     assert _book_recurring(client, user_headers, resource_id, occurrences=1).status_code == 422
     assert _book_recurring(client, user_headers, resource_id, occurrences=53).status_code == 422
+
+
+def test_recurring_idempotency_key_replay_returns_same_series(client, user_headers, resource_id):
+    first = _book_recurring(client, user_headers, resource_id, occurrences=4, key="series-key-1")
+    second = _book_recurring(client, user_headers, resource_id, occurrences=4, key="series-key-1")
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["series_id"] == second.json()["series_id"]
+    assert sorted(b["id"] for b in first.json()["created"]) == sorted(b["id"] for b in second.json()["created"])
+
+    mine = client.get("/bookings/me", headers=user_headers).json()
+    assert len(mine) == 4  # the replay must not have created a second series
+
+
+def test_recurring_idempotency_key_does_not_collide_across_users(client, user_headers, resource_id):
+    from tests.conftest import register_and_login
+
+    other_token = register_and_login(client, "other@example.com")
+    other_headers = {"Authorization": f"Bearer {other_token}"}
+
+    first = _book_recurring(client, user_headers, resource_id, occurrences=2, key="shared-key")
+    second = _book_recurring(
+        client,
+        other_headers,
+        resource_id,
+        occurrences=2,
+        start="2027-02-01T10:00:00Z",
+        end="2027-02-01T11:00:00Z",
+        key="shared-key",
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["series_id"] != second.json()["series_id"]
+
+
+def test_recurring_without_idempotency_key_creates_separate_series_each_call(client, user_headers, resource_id):
+    first = _book_recurring(client, user_headers, resource_id, occurrences=2)
+    second = _book_recurring(
+        client, user_headers, resource_id, occurrences=2, start="2027-03-01T10:00:00Z", end="2027-03-01T11:00:00Z"
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["series_id"] != second.json()["series_id"]
 
 
 def test_cancel_series_removes_all_future_occurrences(client, user_headers, resource_id):

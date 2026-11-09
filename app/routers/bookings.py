@@ -255,6 +255,14 @@ def create_recurring_booking(
     success is the useful behavior for "book my weekly 5pm slot" — the user
     wants the 11 free weeks, not an all-or-nothing failure because week 6 is
     taken.
+
+    If payload.idempotency_key is set, a double-click or retried submission
+    with the same key returns the original series instead of creating a
+    second, fully duplicate one — same pg_advisory_xact_lock + unique-
+    constraint pattern as create_booking(), scoped to
+    hash(user_id, idempotency_key). The key is stamped on only the first
+    occurrence a series produces (see db/010_recurring_series_idempotency_key.sql),
+    so a replay is detected by looking that row up, not by tagging every row.
     """
     if payload.end_time <= payload.start_time:
         raise HTTPException(status_code=422, detail="end_time must be after start_time")
@@ -262,6 +270,32 @@ def create_recurring_booking(
     resource = db.query(Resource).filter(Resource.id == payload.resource_id).first()
     if not resource:
         raise HTTPException(status_code=404, detail="Resource not found")
+
+    if payload.idempotency_key:
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+            {"lock_key": f"{current_user.id}:{payload.idempotency_key}"},
+        )
+        existing_first = (
+            db.query(Booking)
+            .filter(
+                Booking.user_id == current_user.id,
+                Booking.series_idempotency_key == payload.idempotency_key,
+            )
+            .first()
+        )
+        if existing_first is not None:
+            existing_series = (
+                db.query(Booking)
+                .filter(Booking.series_id == existing_first.series_id)
+                .order_by(Booking.start_time)
+                .all()
+            )
+            # Same mypy note as the function's normal return below: ORM rows,
+            # not BookingOut schemas; from_attributes handles it at runtime.
+            return RecurringBookingResult(
+                series_id=existing_first.series_id, created=existing_series, skipped=[]  # type: ignore[arg-type]
+            )
 
     series_id = uuid4()
     created: list[Booking] = []
@@ -299,6 +333,9 @@ def create_recurring_booking(
                 # expects its own dialect-specific UUID return type here —
                 # a stub-generics mismatch, not a real type error.
                 series_id=series_id,  # type: ignore[arg-type]
+                # Stamped on the first occurrence only (not every row) — see
+                # db/010_recurring_series_idempotency_key.sql.
+                series_idempotency_key=(payload.idempotency_key if not created else None),
             )
             db.add(booking)
             try:

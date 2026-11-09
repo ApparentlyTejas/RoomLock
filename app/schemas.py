@@ -102,6 +102,9 @@ class RecurringBookingCreate(BaseModel):
     # week falling on the usual weekly slot. Skipped occurrences aren't
     # created at all, not created-then-cancelled.
     skip_dates: list[date] = []
+    # A double-click or retried "create series" request with the same key
+    # returns the original series instead of creating a duplicate one.
+    idempotency_key: str | None = None
 
 
 class RecurringBookingResult(BaseModel):
