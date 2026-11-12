@@ -131,7 +131,7 @@ None of these were Postgres or the booking logic failing. All four were infrastr
 | Auth | JWT (python-jose), bcrypt password hashing, optional Google OAuth |
 | Concurrency control | `SELECT ... FOR UPDATE` (fix 1), Postgres `EXCLUDE` constraint (fix 2), `pg_advisory_xact_lock` for idempotency keys |
 | Load testing | Locust |
-| Testing | pytest against a real throwaway Postgres instance, 158 tests, 97% coverage |
+| Testing | pytest against a real throwaway Postgres instance, 175 tests, 98% coverage |
 | Observability | Prometheus metrics, structured JSON access logs |
 | CI | GitHub Actions: ruff, mypy, pytest with coverage against a Postgres 16 service container |
 | Deployment | Docker, Render (app), Neon (serverless Postgres) |
